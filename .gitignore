@@ -9,6 +9,13 @@ app/src/main/assets/ytpro/
 # Local configuration
 local.properties
 
+# Local emulator / test tooling (downloaded during local development)
+.gradle-user/
+.avd-home/
+.android-sdk/
+.android-userhome/
+*.shot-*.png
+
 # IDE
 .idea/
 *.iml
@@ -21,3 +28,4 @@ local.properties
 *.pk8
 keystore.properties
 keystore_base64.txt
+remote_gradle_b64.txt

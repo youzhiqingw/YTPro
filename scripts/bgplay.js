@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 3.9.2
+Version: 3.9.9
 URI: https://github.com/prateek-chaubey/YTPRO
 */
 

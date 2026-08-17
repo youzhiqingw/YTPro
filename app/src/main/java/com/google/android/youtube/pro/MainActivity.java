@@ -28,8 +28,13 @@ import com.google.android.youtube.pro.webview.YTProWebViewClient;
 
 public class MainActivity extends Activity {
 
-    /** Reflects the current H5 player orientation; used only for the PIP aspect ratio. */
-    public boolean portrait = false;
+    /**
+     * Reflects the current H5 player orientation (true = portrait video,
+     * false = landscape video). Written from the WebView's JavaBridge thread by
+     * {@code Android.fullScreen(...)} and read on the UI thread by the fullscreen
+     * handler, so it is volatile to guarantee visibility across threads.
+     */
+    public volatile boolean portrait = false;
     public boolean isPlaying = false;
     public boolean mediaSession = false;
     public boolean isPip = false;

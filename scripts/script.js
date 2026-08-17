@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 3.9.8
+Version: 3.9.9
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 1 May , 2026 , 19:25 IST
 */
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="3.98";
+var YTProVer="3.99";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
