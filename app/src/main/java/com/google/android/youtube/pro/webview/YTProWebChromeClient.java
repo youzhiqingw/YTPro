@@ -16,9 +16,6 @@ import android.widget.FrameLayout;
 import com.google.android.youtube.pro.MainActivity;
 
 public class YTProWebChromeClient extends WebChromeClient {
-    /** How long to hold the video-aspect orientation before enabling free sensor rotation. */
-    private static final long INITIAL_ORIENTATION_HOLD_MS = 1000L;
-
     private final MainActivity activity;
     private final YTProWebView web;
 
@@ -72,25 +69,30 @@ public class YTProWebChromeClient extends WebChromeClient {
                 ViewGroup.LayoutParams.MATCH_PARENT));
         decor.setSystemUiVisibility(immersiveFlags());
 
-        // The initial fullscreen direction follows the video's own aspect ratio
-        // (portrait content -> portrait, landscape content -> landscape).
-        // activity.portrait is kept in sync with the video element by the
-        // injected script before requestFullscreen() fires. Once the initial
-        // rotation has settled we switch back to sensor-driven rotation so the
-        // user can keep rotating freely with the device.
-        if (activity.isPip) {
-            // PIP is transient, so there is no meaningful "initial" direction.
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+        // Match the fullscreen orientation to the video's own aspect ratio
+        // rather than the device's physical orientation: portrait content goes
+        // portrait, landscape content goes landscape. SENSOR_* variants allow a
+        // 180 degree flip so the picture stays upright either way up the phone
+        // is held. activity.portrait is kept in sync with the video element by
+        // the injected script before requestFullscreen() fires.
+        final int orientation;
+        if (activity.isPip || activity.portrait) {
+            orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
         } else {
-            final int initialOrientation = activity.portrait
-                    ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-            activity.setRequestedOrientation(initialOrientation);
-            decor.postDelayed(() -> {
-                if (mCustomView != null) {
-                    activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
-                }
-            }, INITIAL_ORIENTATION_HOLD_MS);
+            orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        }
+        activity.setRequestedOrientation(orientation);
+    }
+
+    /** Whether the HTML5 player is currently showing its fullscreen custom view. */
+    public boolean isFullscreen() {
+        return mCustomView != null;
+    }
+
+    /** Exits the HTML5 fullscreen custom view, if one is currently showing. */
+    public void exitFullscreen() {
+        if (mCustomView != null) {
+            onHideCustomView();
         }
     }
 

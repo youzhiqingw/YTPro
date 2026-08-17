@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 4.0.0
+Version: 4.0.1
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 1 May , 2026 , 19:25 IST
 */
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.00";
+var YTProVer="4.01";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -206,7 +206,7 @@ var addSettingsTab=()=>{
 if(document.getElementById("setDiv") == null){
 var setDiv=document.createElement("div");
 setDiv.setAttribute("style",`
-position:relative;
+position:fixed;
 z-index:2147483647;
 width:40px;
 height:40px;
@@ -223,15 +223,20 @@ svg.innerHTML=`<svg fill="${ window.location.href.indexOf("watch") < 0 ? c : "#f
 `;
 setDiv.appendChild(svg);
 
+// Fixed positioning keeps the gear out of the header's flex layout, which
+// previously pushed it onto the search / more buttons. Place it just to the
+// right of the logo (or the back button) and clear of the top-right controls.
+(document.body||document.documentElement).appendChild(setDiv);
+setDiv.style.top="8px";
+var left=56;
 var anchor=document.getElementsByTagName("ytm-home-logo")[0];
-if(anchor && anchor.parentNode){
-  insertAfter(anchor,setDiv);
-}else{
-  setDiv.style.position="fixed";
-  setDiv.style.top="8px";
-  setDiv.style.right="8px";
-  (document.body||document.documentElement).appendChild(setDiv);
+if(anchor){
+  var r=anchor.getBoundingClientRect();
+  if(r && r.width>0 && r.right>0 && r.right < window.innerWidth/2){
+    left=Math.round(r.right)+8;
+  }
 }
+setDiv.style.left=left+"px";
 
 setDiv.addEventListener("click",function(ev){
   ev.preventDefault();
@@ -1835,6 +1840,15 @@ const originalRequestFullscreen = Element.prototype.requestFullscreen;
 document.exitFullscreen = function (...args) {
  if(!isPIP){ return originalExitFullscreen.apply(this, args);}
 };
+
+// Reset the PIP flag whenever the document actually leaves fullscreen, so a
+// stale flag can never block a later fullscreen exit.
+document.addEventListener("fullscreenchange",function(){
+ if(!(document.fullscreenElement || document.webkitFullscreenElement)){
+  isPIP=false;
+  pauseAllowed=true;
+ }
+});
 
 
 //request full screen

@@ -1,6 +1,6 @@
 {
   "name": "ytpro",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "All in one YouTube App with AdBlocker, Downloader, Background Player, PIP Mode and many more features.",
   "main": "script.js",
   "repository": {

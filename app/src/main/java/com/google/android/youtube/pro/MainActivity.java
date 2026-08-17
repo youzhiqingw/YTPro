@@ -141,6 +141,12 @@ public class MainActivity extends Activity {
     }
 
     private void handleBackPress() {
+        // While the HTML5 player is fullscreen, the back button exits fullscreen
+        // first (the native custom view covers the page's own controls).
+        if (chromeClient != null && chromeClient.isFullscreen()) {
+            chromeClient.exitFullscreen();
+            return;
+        }
         if (web != null && web.canGoBack()) {
             web.goBack();
         } else {

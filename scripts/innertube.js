@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 4.0.0
+Version: 4.0.1
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 1 May , 2026 , 19:25 IST
 */
