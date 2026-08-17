@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 3.9.9
+Version: 4.0.0
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 1 May , 2026 , 19:25 IST
 */
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="3.99";
+var YTProVer="4.00";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -472,14 +472,18 @@ display:"flex",
 alignItems:"center",
 justifyContent:"center",
 fontWeight:"550",
-height:"65%",
+height:"40px",
+minHeight:"40px",
 minWidth:"80px",
+padding:"0 12px",
 width:"auto",
 borderRadius:"20px",
 background:d,
 fontSize:"12px",
 marginRight:"5px",
 textAlign:"center",
+flexShrink:"0",
+boxSizing:"border-box",
 };
 for(x in s){
 e.style[x]=s[x];
@@ -1405,15 +1409,15 @@ if(document.getElementById("ytproMainDivE") == null){
 var ytproMainDivA=document.createElement("div");
 ytproMainDivA.setAttribute("id","ytproMainDivE");
 ytproMainDivA.setAttribute("style",`
-height:50px;width:100%;display:block;overflow:auto;
+width:100%;display:block;min-height:50px;
 `);
 
 insertAfter(document.getElementsByClassName('slim-video-action-bar-actions')[0],ytproMainDivA);
 
 var ytproMainDiv=document.createElement("div");
 ytproMainDiv.setAttribute("style",`
-height:50px;width:100%;display:flex;overflow:auto;
-align-items:center;justify-content:center;padding-left:20px;padding-right:10px;
+width:100%;display:flex;flex-wrap:wrap;align-items:center;
+justify-content:flex-start;padding:5px 10px;box-sizing:border-box;
 `);
 ytproMainDivA.appendChild(ytproMainDiv);
 
@@ -1433,7 +1437,6 @@ ytproFavElem.addEventListener("click",()=>{ytProHeart(ytproFavElem);});
 /*Download Button*/
 var ytproDownVidElem=document.createElement("div");
 sty(ytproDownVidElem);
-ytproDownVidElem.style.width="140px";
 ytproDownVidElem.innerHTML=`${downBtn.replace('width="18"','width="24"').replace('height="18"','height="24"')}<span style="margin-left:2px">Download<span>`;
 ytproMainDiv.appendChild(ytproDownVidElem);
 ytproDownVidElem.addEventListener("click",
@@ -1444,7 +1447,6 @@ window.location.hash="download";
 /*PIP Button*/
 var ytproPIPVidElem=document.createElement("div");
 sty(ytproPIPVidElem);
-ytproPIPVidElem.style.width="140px";
 ytproPIPVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M18 7h-6c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V8c0-.55-.45-1-1-1zm3-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm-1 16.01H4c-.55 0-1-.45-1-1V5.98c0-.55.45-1 1-1h16c.55 0 1 .45 1 1v12.03c0 .55-.45 1-1 1z"/></svg><span style="margin-left:8px">PIP Mode<span>`;
 ytproMainDiv.appendChild(ytproPIPVidElem);
 ytproPIPVidElem.addEventListener("click",
