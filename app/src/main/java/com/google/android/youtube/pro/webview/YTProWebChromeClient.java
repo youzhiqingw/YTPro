@@ -4,16 +4,20 @@ import android.Manifest;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 // Import the main files from the parent package
 import com.google.android.youtube.pro.MainActivity;
+import com.google.android.youtube.pro.R;
 
 public class YTProWebChromeClient extends WebChromeClient {
     private final MainActivity activity;
@@ -23,6 +27,11 @@ public class YTProWebChromeClient extends WebChromeClient {
     private WebChromeClient.CustomViewCallback mCustomViewCallback;
     private int mOriginalSystemUiVisibility;
     private int mOriginalRequestedOrientation;
+
+    /** Orientation-lock toggle shown on the left of portrait fullscreen. */
+    private ImageView mLockButton;
+    /** Whether the portrait fullscreen is locked to a fixed orientation. */
+    private boolean mOrientationLocked = true;
 
     public YTProWebChromeClient(MainActivity activity, YTProWebView web) {
         this.activity = activity;
@@ -69,15 +78,18 @@ public class YTProWebChromeClient extends WebChromeClient {
                 ViewGroup.LayoutParams.MATCH_PARENT));
         decor.setSystemUiVisibility(immersiveFlags());
 
-        // Match the fullscreen orientation to the video's own aspect ratio
-        // rather than the device's physical orientation: portrait content goes
-        // portrait, landscape content goes landscape. SENSOR_* variants allow a
-        // 180 degree flip so the picture stays upright either way up the phone
-        // is held. activity.portrait is kept in sync with the video element by
-        // the injected script before requestFullscreen() fires.
+        // Match the fullscreen orientation to the video's own aspect ratio.
+        // Portrait content starts fixed (locked) in portrait and offers a lock
+        // toggle; landscape content starts in sensor-landscape (180 degree flip).
+        // activity.portrait is kept in sync with the video element by the
+        // injected script before requestFullscreen() fires.
         final int orientation;
-        if (activity.isPip || activity.portrait) {
+        if (activity.isPip) {
             orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+        } else if (activity.portrait) {
+            mOrientationLocked = true;
+            orientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+            addLockOverlay(decor);
         } else {
             orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
         }
@@ -103,6 +115,7 @@ public class YTProWebChromeClient extends WebChromeClient {
         }
 
         FrameLayout decor = (FrameLayout) activity.getWindow().getDecorView();
+        removeLockOverlay(decor);
         decor.removeView(mCustomView);
         mCustomView = null;
 
@@ -117,8 +130,6 @@ public class YTProWebChromeClient extends WebChromeClient {
         }
 
         // Restore the exact orientation the activity had before fullscreen.
-        // Normally this is SCREEN_ORIENTATION_UNSPECIFIED, i.e. free rotation,
-        // which is what we want for a pure player experience.
         activity.setRequestedOrientation(mOriginalRequestedOrientation);
 
         if (mCustomViewCallback != null) {
@@ -130,11 +141,16 @@ public class YTProWebChromeClient extends WebChromeClient {
 
     /**
      * Keeps the immersive flags in sync after a rotation (which would otherwise
-     * drop the hidden-system-bars state and cause UI offset / black bars).
+     * drop the hidden-system-bars state and cause UI offset / black bars), and
+     * keeps the portrait-fullscreen lock toggle visible only while portrait.
      */
     public void onConfigurationChanged(Configuration newConfig) {
         if (mCustomView != null) {
             activity.getWindow().getDecorView().setSystemUiVisibility(immersiveFlags());
+            if (mLockButton != null) {
+                boolean portrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT;
+                mLockButton.setVisibility(portrait ? View.VISIBLE : View.GONE);
+            }
         }
     }
 
@@ -145,6 +161,59 @@ public class YTProWebChromeClient extends WebChromeClient {
                 | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+    }
+
+    /** Adds the native orientation-lock toggle to the left of portrait fullscreen. */
+    private void addLockOverlay(FrameLayout decor) {
+        if (mLockButton != null) {
+            return;
+        }
+
+        mLockButton = new ImageView(activity);
+        mLockButton.setImageResource(R.drawable.ic_lock);
+        mLockButton.setContentDescription("Lock orientation");
+        mLockButton.setPadding(dp(12), dp(12), dp(12), dp(12));
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(0x66000000);
+        mLockButton.setBackground(bg);
+
+        mLockButton.setOnClickListener(v -> toggleOrientationLock());
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        lp.leftMargin = dp(12);
+        decor.addView(mLockButton, lp);
+    }
+
+    /** Toggles between locked (fixed portrait) and unlocked (follow device). */
+    private void toggleOrientationLock() {
+        mOrientationLocked = !mOrientationLocked;
+        if (mOrientationLocked) {
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            if (mLockButton != null) {
+                mLockButton.setImageResource(R.drawable.ic_lock);
+            }
+        } else {
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+            if (mLockButton != null) {
+                mLockButton.setImageResource(R.drawable.ic_lock_open);
+            }
+        }
+    }
+
+    private void removeLockOverlay(FrameLayout decor) {
+        if (mLockButton != null) {
+            decor.removeView(mLockButton);
+            mLockButton = null;
+        }
+    }
+
+    private int dp(int value) {
+        return (int) (value * activity.getResources().getDisplayMetrics().density + 0.5f);
     }
 
     @Override

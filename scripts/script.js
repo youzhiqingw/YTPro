@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 4.0.1
+Version: 4.0.2
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 1 May , 2026 , 19:25 IST
 */
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.01";
+var YTProVer="4.02";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -203,6 +203,15 @@ subtree: true
 
 /*Add Settings Tab*/
 var addSettingsTab=()=>{
+// Only show the YTPro settings gear on the home page. On every other page
+// (subscriptions, library, watch, shorts, settings sheet, ...) it is redundant
+// and overlaps the page's own top-right icons, so remove it there.
+var isHome=(window.location.pathname === "/" || window.location.pathname === "");
+if(!isHome){
+  var existing=document.getElementById("setDiv");
+  if(existing){existing.remove();}
+  return;
+}
 if(document.getElementById("setDiv") == null){
 var setDiv=document.createElement("div");
 setDiv.setAttribute("style",`
@@ -1853,6 +1862,9 @@ document.addEventListener("fullscreenchange",function(){
 
 //request full screen
 Element.prototype.requestFullscreen = function (...args) {
+// A normal (non-PIP) fullscreen request resets the PIP flag, so a stale flag
+// left over from a previous PIP session can never block the exit later.
+isPIP=false;
 var video = document.getElementsByClassName('video-stream')[0];
 
 if(video.getBoundingClientRect().height > video.getBoundingClientRect().width){
