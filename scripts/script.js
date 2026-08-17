@@ -1136,6 +1136,18 @@ if(e.destination.url.indexOf("watch") > -1 || e.destination.url.indexOf("shorts"
 fDislikes(e.destination.url);
 checkSponsors(e.destination.url);
 }
+// 路由跳转时重新评估齿轮显隐，确保离开主页齿轮消失、返回主页齿轮恢复
+addSettingsTab();
+});
+
+// YouTube SPA 路由跳转（pushState/popstate/浏览器前进后退）时，重新评估
+// 齿轮显隐，确保离开主页后齿轮自动消失，返回主页后自动恢复。
+// MutationObserver 依赖 DOM 变化，纯 hash 或无 DOM 变更的跳转可能漏触发。
+window.addEventListener("popstate", function(){
+  addSettingsTab();
+});
+window.addEventListener("yt-navigate-finish", function(){
+  addSettingsTab();
 });
 
 
@@ -1846,8 +1858,11 @@ const originalExitFullscreen = document.exitFullscreen;
 const originalRequestFullscreen = Element.prototype.requestFullscreen;
 
 //exit full screen
+// 退出全屏请求无条件放行。isPIP 现在仅用于 fullscreenchange 监听器内部
+// 清除残留状态，不再拦截任何退出请求。PIP 期间的全屏退出由 removePIP()
+// 显式触发且会先复位 isPIP，普通全屏退出不再被残留标志位吞掉。
 document.exitFullscreen = function (...args) {
- if(!isPIP){ return originalExitFullscreen.apply(this, args);}
+ return originalExitFullscreen.apply(this, args);
 };
 
 // Reset the PIP flag whenever the document actually leaves fullscreen, so a

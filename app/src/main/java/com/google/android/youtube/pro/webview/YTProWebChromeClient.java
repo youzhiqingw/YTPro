@@ -110,12 +110,14 @@ public class YTProWebChromeClient extends WebChromeClient {
 
     @Override
     public void onHideCustomView() {
+        // 先清理锁图标 overlay，即使 mCustomView 为 null 也不残留 UI。
+        FrameLayout decor = (FrameLayout) activity.getWindow().getDecorView();
+        removeLockOverlay(decor);
+
         if (mCustomView == null) {
             return;
         }
 
-        FrameLayout decor = (FrameLayout) activity.getWindow().getDecorView();
-        removeLockOverlay(decor);
         decor.removeView(mCustomView);
         mCustomView = null;
 
