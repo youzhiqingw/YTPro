@@ -15,54 +15,54 @@
 
 ---
 
-## Download
+## 下载
 
-[![Download](https://custom-icon-badges.herokuapp.com/badge/-Download-ff0000?style=for-the-badge&logo=download&logoColor=white)](https://nightly.link/youzhiqingw/YTPro/workflows/gradle/main/YTPRO.zip)
+[![下载](https://custom-icon-badges.herokuapp.com/badge/-下载-ff0000?style=for-the-badge&logo=download&logoColor=white)](https://nightly.link/youzhiqingw/YTPro/workflows/gradle/main/YTPRO.zip)
 
-## Screenshots
+## 截图
 
 | | | |
 |:--:|:--:|:--:|
 |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen3.jpg'> | <img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen2.jpg'> |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen5.jpg'> |
 |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen6.jpg'> | <img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen4.jpg'> |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen1.jpg'> |
 
-## Features
+## 功能特性
 
-- **Video Downloader** — Download YouTube videos in multiple qualities
-- **Shorts Downloader** — Save short-form videos
-- **Built-in Muxer** — Merge video and audio streams
-- **Thumbnail Downloader** — Save video cover images
-- **Captions Downloader** — Download subtitles
-- **Ad Blocker** — Block advertisements
-- **Minimize Video** — Continue watching in a small window
-- **Picture-in-Picture** — Watch while using other apps
-- **Gesture Control** — Swipe to adjust volume and brightness
-- **Dislike Counter** — Shows number of dislikes
-- **Background Playback** — Listen with screen off
-- **Custom Heart** — Save videos without logging in
-- **Codec Toggle** — Enable/disable media codecs
-- **Sponsor Skip** — Automatically skip sponsored segments
-- **Force Zoom** — Pinch to zoom any video
-- **Hide Shorts** — Remove Shorts from your feed
-- **Playback Speed** — Up to 10x video speed
-- **Minimal Size** — Lightweight APK footprint
-- **Adaptive Icons** — Follows system theme
-- **Auto Update** — Built-in app updater
+- **视频下载** — 多画质下载 YouTube 视频
+- **Shorts 下载** — 保存短视频内容
+- **内置混流器** — 自动合并视频和音频
+- **封面下载** — 保存视频缩略图
+- **字幕下载** — 下载视频字幕文件
+- **广告拦截** — 屏蔽广告内容
+- **小窗播放** — 缩小窗口继续观看
+- **画中画模式** — 边用其他应用边观看
+- **手势控制** — 滑动调节音量和亮度
+- **显示点踩数** — 查看视频不喜欢数量
+- **后台播放** — 锁屏后继续播放音频
+- **收藏功能** — 无需登录即可收藏视频
+- **编解码器切换** — 启用/禁用媒体编解码器
+- **跳过赞助** — 自动跳过赞助商片段
+- **强制缩放** — 双指缩放任意视频
+- **隐藏 Shorts** — 从首页移除短视频
+- **播放速度** — 最高支持 10 倍速播放
+- **体积小巧** — APK 文件极简轻量化
+- **自适应图标** — 跟随系统主题样式
+- **自动更新** — 内置应用更新功能
 
-## ToDo
+## 待办事项
 
-- [ ] Audio Enhancement
-- [ ] Silence Skipping
+- [ ] 音频增强
+- [ ] 跳过静音片段
 
-## Credits
+## 致谢
 
 - [SponsorBlock](https://github.com/ajayyy/SponsorBlock)
 - [Return YouTube Dislike](https://github.com/Anarios/return-youtube-dislike)
 - [YouTube.js](https://github.com/LuanRT/YouTube.js/)
 
-## Disclaimer
+## 免责声明
 
-This is an educational project demonstrating JavaScript injection into WebView for enhanced productivity. Use at your own risk.
+本项目为教育用途，演示通过 WebView JavaScript 注入增强功能。使用风险自负。
 
 ---
 
