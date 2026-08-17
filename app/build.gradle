@@ -1,29 +1,70 @@
 apply plugin: 'com.android.application'
 
+// Optional local signing config. keystore.properties is gitignored; when absent
+// the release build stays unsigned (safe fallback for local development).
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace "com.google.android.youtube.pro"  
-    compileSdk 36
+    namespace "com.google.android.youtube.pro"
+    compileSdk 35
+    buildToolsVersion "36.1.0"
 
     defaultConfig {
         applicationId "com.google.android.youtube.pro"
         minSdkVersion 21
-        targetSdkVersion 36
+        targetSdkVersion 35
         versionCode 1
         versionName "3.98"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                // v1 for Android 5/6, v2 for 7+, v3 for 9+ (key rotation).
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
 
 dependencies {
-    // Add your dependencies here
+    // Official AndroidX WebKit wrapper for WebMessagePort / ArrayBuffer binary
+    // streaming (the native android.webkit.WebMessage does not expose the
+    // binary ArrayBuffer API publicly). Lightweight and framework-maintained.
     implementation 'androidx.webkit:webkit:1.12.0'
 }
 
+// ---------------------------------------------------------------------------
+// Bundle the injected YTPRO scripts into the APK assets so the WebView serves
+// them locally (offline, no CDN). scripts/ remains the single source of truth;
+// the copy task refreshes assets/ytpro/ before every build.
+// ---------------------------------------------------------------------------
+tasks.register('syncYtproScripts', Copy) {
+    from rootProject.file('scripts')
+    include 'script.js', 'bgplay.js', 'innertube.js'
+    into "$projectDir/src/main/assets/ytpro"
+}
 
-
+tasks.named('preBuild') {
+    dependsOn 'syncYtproScripts'
+}

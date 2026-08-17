@@ -27,18 +27,6 @@ window.isPIP=false;
 window.pauseAllowed = true; // allow pause by default
 var sTime=[];
 var webUrls=["m.youtube.com","youtube.com","yout.be","accounts.google.com"];
-var GeminiAT="";
-var GeminiModels = {
-    "3.0 Pro": '[1,null,null,null,"9d8ca3786ebdfbea",null,null,0,[4],null,null,1]',
-    "3.0 Flash": '[1,null,null,null,"fbb127bbb056c959",null,null,0,[4],null,null,1]',
-    "3.0 Flash Thinking": '[1,null,null,null,"5bf011840784117a",null,null,0,[4],null,null,1]',
-    "3.0 Pro Plus": '[1,null,null,null,"e6fa609c3fa255c0",null,null,0,[4],null,null,4]',
-    "3.0 Flash Plus": '[1,null,null,null,"56fdd199312815e2",null,null,0,[4],null,null,4]',
-    "3.0 Flash Thinking Plus": '[1,null,null,null,"e051ce1aa80aa576",null,null,0,[4],null,null,4]',
-    "3.0 Pro Advanced": '[1,null,null,null,"e6fa609c3fa255c0",null,null,0,[4],null,null,2]',
-    "3.0 Flash Advanced": '[1,null,null,null,"56fdd199312815e2",null,null,0,[4],null,null,2]',
-    "3.0 Flash Thinking Advanced": '[1,null,null,null,"e051ce1aa80aa576",null,null,0,[4],null,null,2]'
-};
 
 var YTPROCodecs={
 video:["AV1","VP8","VP9","H264"],
@@ -54,15 +42,12 @@ var sens=0.005;
 var vol=Android.getVolume();
 var brt = Android.getBrightness()/100;
 
-if(localStorage.getItem("saveCInfo") == null  || localStorage.getItem("gesC") == null || localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
+if(localStorage.getItem("gesC") == null || localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
 localStorage.setItem("autoSpn","true");
 localStorage.setItem("bgplay","true");
 localStorage.setItem("gesC","true");
 localStorage.setItem("gesM","false");
 localStorage.setItem("fzoom","false");
-localStorage.setItem("saveCInfo","true");
-localStorage.setItem("geminiModel","3.0 Flash");
-localStorage.setItem("prompt","Give me details about this YouTube video Id: {videoId} , a detailed summary of timestamps with facts , resources and reviews of the main content");
 localStorage.setItem("devMode","false");
 
 localStorage.setItem("block_60fps","false");
@@ -78,10 +63,6 @@ localStorage.setItem(x,"true");
 }
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
-}
-
-if (["2.0 Flash", "2.0 Flash Thinking", "2.5 Flash", "2.5 Pro"].includes(localStorage.getItem('geminiModel'))) {
-localStorage.setItem('geminiModel', "3.0 Flash");
 }
 
 
@@ -225,24 +206,38 @@ var addSettingsTab=()=>{
 if(document.getElementById("setDiv") == null){
 var setDiv=document.createElement("div");
 setDiv.setAttribute("style",`
-z-index:9999999999;
-font-size:22px;
-text-align:center;
-line-height:35px;
+position:relative;
+z-index:2147483647;
+width:40px;
+height:40px;
+display:flex;
+align-items:center;
+justify-content:center;
 pointer-events:auto;
+cursor:pointer;
 `);
 setDiv.setAttribute("id","setDiv");
-var svg=document.createElement("ytm-pivot-bar-item-renderer");
+var svg=document.createElement("span");
+svg.style.pointerEvents="none";
 svg.innerHTML=`<svg fill="${ window.location.href.indexOf("watch") < 0 ? c : "#fff" }" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"  id="hSett"><path d="M12.844 1h-1.687a2 2 0 00-1.962 1.616 3 3 0 01-3.92 2.263 2 2 0 00-2.38.891l-.842 1.46a2 2 0 00.417 2.507 3 3 0 010 4.525 2 2 0 00-.417 2.507l.843 1.46a2 2 0 002.38.892 3.001 3.001 0 013.918 2.263A2 2 0 0011.157 23h1.686a2 2 0 001.963-1.615 3.002 3.002 0 013.92-2.263 2 2 0 002.38-.892l.842-1.46a2 2 0 00-.418-2.507 3 3 0 010-4.526 2 2 0 00.418-2.508l-.843-1.46a2 2 0 00-2.38-.891 3 3 0 01-3.919-2.263A2 2 0 0012.844 1Zm-1.767 2.347a6 6 0 00.08-.347h1.687a4.98 4.98 0 002.407 3.37 4.98 4.98 0 004.122.4l.843 1.46A4.98 4.98 0 0018.5 12a4.98 4.98 0 001.716 3.77l-.843 1.46a4.98 4.98 0 00-4.123.4A4.979 4.979 0 0012.843 21h-1.686a4.98 4.98 0 00-2.408-3.371 4.999 4.999 0 00-4.12-.399l-.844-1.46A4.979 4.979 0 005.5 12a4.98 4.98 0 00-1.715-3.77l.842-1.459a4.98 4.98 0 004.123-.399 4.981 4.981 0 002.327-3.025ZM16 12a4 4 0 11-7.999 0 4 4 0 018 0Zm-4 2a2 2 0 100-4 2 2 0 000 4Z"></path></svg>
 `;
 setDiv.appendChild(svg);
-insertAfter(document.getElementsByTagName("ytm-home-logo")[0],setDiv)
-if(document.getElementById("hSett") != null){
-document.getElementById("hSett").addEventListener("click",
-function(ev){
-window.location.hash="settings";
-});
+
+var anchor=document.getElementsByTagName("ytm-home-logo")[0];
+if(anchor && anchor.parentNode){
+  insertAfter(anchor,setDiv);
+}else{
+  setDiv.style.position="fixed";
+  setDiv.style.top="8px";
+  setDiv.style.right="8px";
+  (document.body||document.documentElement).appendChild(setDiv);
 }
+
+setDiv.addEventListener("click",function(ev){
+  ev.preventDefault();
+  ev.stopPropagation();
+  window.location.hash="settings";
+});
 }
 
 
@@ -492,25 +487,6 @@ e.style[x]=s[x];
 }
 
 
-function getGeminiModels(){
-var t="";
-
-for(var x in GeminiModels){
-
-
-t+=`<br>
-<button data-action="saveModel" data-value="${x}" ${(x == localStorage.getItem('geminiModel')) ? `style="background:${c};color:${dc};"` : "" } >${x}
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${c}"  viewBox="0 0 16 16">
-<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-</svg>
-</button>`;
-}
-
-return t;
-
-}
-
-
 /*Get Codecs*/
 function getYTPROCodecs(){
 var t=`<p style="text-align:center;font-size:14px;">This feature is experimental , this may break YTPro if not configured correctly. By default all the codecs are enabled , tap on the buttons below to switch them.</p><br> <vc  style="font-size:14px;">Video Codecs</vc><br>`;
@@ -673,7 +649,7 @@ border-radius:0 0 25px 25px;
 backdrop-filter:blur(10px);
 height:15px;
 }
-#ssprodivI .geminiModels,#ssprodivI .disableCodecs,#ssprodivI .geminiPrompt{
+#ssprodivI .disableCodecs{
 height:auto;
 min-height:100px;
 padding-bottom:12px;
@@ -688,7 +664,7 @@ box-shadow:0px 0px 5px black;
 border-radius:25px;
 display:none;
 }
-#ssprodivI .geminiModels:before,#ssprodivI .disableCodecs:before,#ssprodivI .geminiPrompt:before{
+#ssprodivI .disableCodecs:before{
 height:100%;
 width:100%;
 background:rgba(0,0,0,.6);
@@ -696,13 +672,6 @@ position:fixed;
 top:0;
 left:0;
 z-index:-999;
-}
-#ssprodivI .geminiPrompt textarea{
-height:300px;
-width:95%;
-border-radius:20px;
-padding:15px;
-background:${d};
 }
 #ssprodivI .disableCodecs{
 column:50%;
@@ -754,20 +723,6 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <br>
 <div>Hide Shorts <span data-action="sttCnf" data-value="shorts" style="${sttCnf(0,0,"shorts")}" ><b style="${sttCnf(0,1,"shorts")}" ></b></span></div> 
 <br>
-<div>Use single Gemini chat <span data-action="sttCnf" data-value="saveCInfo" style="${sttCnf(0,0,"saveCInfo")}" ><b style="${sttCnf(0,1,"saveCInfo")}"></b></span></div>
-<br>
-<button data-action="geminiModels">Select Gemini Model
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
-<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-</svg>
-</button>
-<br>
-<button data-action="geminiPrompt">Edit Gemini Prompt
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
-<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-</svg>
-</button>
-<br>
 <button data-action="disableCodecs">Disable Codecs
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
 <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
@@ -792,22 +747,6 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <p style="font-size:1.25rem;width:calc(100% - 20px);margin:auto;text-align:left"><b style="font-weight:bold">Disclaimer</b>: This is an educational project aimed at showcasing javascript injection into a webview to enhance productivity.<br>
 You can find the source code at <a href="https://www.youtube.com/redirect?q=https://github.com/prateek-chaubey/YTPRO" style="font-family:monospace;" > https://github.com/prateek-chaubey/YTPRO</a>
 <br><br></p><br><br><br>
-
-<div class="geminiModels">
-
-</div>
-
-
-<div class="geminiPrompt" style="text-align:center;">
-
-<textarea>
-${localStorage.getItem("prompt")}
-</textarea>
-
-<button data-action="savePrompt" style="margin-top:10px;width:25%;float:right;text-align:center;background:${c};color:${dc};" >Save</button>
-<br><br>
-</div>
-
 
 <div class="disableCodecs">
 
@@ -851,12 +790,6 @@ var actionsList={
   sttCnf:(button,action)=>{
     sttCnf(button,action);
   },
-  geminiModels:()=>{
-    document.getElementsByClassName('geminiModels')[0].style.display='block';document.getElementsByClassName('geminiModels')[0].innerHTML=getGeminiModels();
-  },
-  geminiPrompt:()=>{
-    document.getElementsByClassName('geminiPrompt')[0].style.display='block';
-  },
   issues:()=>{
     Android.oplink('https://github.com/prateek-chaubey/YTPRO/issues');
   },
@@ -866,9 +799,6 @@ var actionsList={
   sponsor:()=>{
     Android.oplink('https://github.com/sponsors/prateek-chaubey');
   },
-  savePrompt:(el)=>{
-    localStorage.setItem('prompt',el.previousElementSibling.value);el.parentElement.style.display='none';
-  },
   done:(el)=>{
     el.parentElement.style.display='none';
   },
@@ -877,11 +807,6 @@ var actionsList={
   },
   block_60fps:(el)=>{
     sttCnf(el,"block_60fps");
-  },
-  saveModel:(el,value)=>{
-    localStorage.removeItem('geminiChatInfo');
-    localStorage.setItem('geminiModel',value);
-    el.parentElement.style.display='none';
   }
 }
 
@@ -900,16 +825,6 @@ ytpSetI.querySelectorAll("[data-action]").forEach(button =>{
 
 //disable Codecs
 ytpSetI.querySelector(".disableCodecs").addEventListener("click",(e)=>{
-  var el = e.target.closest("[data-action]");
-  if(!el) return;
-  
-  actionsList[el.dataset.action](el,el.dataset.value);
-
-})
-
-
-//gemini model selector
-ytpSetI.querySelector(".geminiModels").addEventListener("click",(e)=>{
   var el = e.target.closest("[data-action]");
   if(!el) return;
   
@@ -1325,245 +1240,6 @@ player.removeAttribute("ogTop");
 
 
 
-/*JAVA Callback for AccessToken*/
-function callbackSNlM0e(){
-return new Promise(resolve => {
-callbackSNlM0e.resolve = resolve; 
-});
-}
-
-/*JAVA Callback for Gemini Response*/
-function callbackGeminiClient(){
-return new Promise(resolve => {
-callbackGeminiClient.resolve = resolve; 
-});
-}
-
-
-
-
-
-/*Handles the reponse*/
-function handleGeminiResponse(res){
-
-
-/*Extract the body from the response*/
-const getBody=(x)=>{
-for(var i in x){
-try{
-var json=JSON.parse(x[i][2]);
-if(json[4]?.[0]?.[0].indexOf("rc_") > -1) return json;
-}catch(e){console.log("JSON parse error: "+e);}}
-}
-
-/*Modifies the timestamps , to handle them inside the video element*/
-const modifyTimestamps=(x)=>{
-var html=x;
-var hrefs=html.match(/href="([^"]*)"/g) || [];
-var urls= [...hrefs].map(url => url.replace(/href="|"/g, ""));
-hrefs.forEach((x,i)=>{
-var time=new URL(urls[i]).searchParams.get("t");
-if(time != null){
-html=html.replace(x,`href="javascript:void(0);" onclick="document.getElementsByClassName('video-stream')[0].currentTime='${time}'"`)
-}else if(urls[i].indexOf("youtube.com") < 0 && urls[i].indexOf("youtu.be") < 0){
-html=html.replace(x,`href="javascript:void(0);" onclick="try{document.getElementsByClassName('video-stream')[0].pause();}catch{}Android.oplink('${urls[i]}')"`)
-}
-})
-return html;
-}
-
-
-
-
-
-
-/*checks if the object is empty*/
-var response=res.stream;
-
-if (response == undefined) return document.getElementById("GeminiResponse").innerHTML=`<center style="margin-top:15px" > An error Occurred while connecting to Gemini`;
-
-var lines=response.split("\n");
-var responseJson=JSON.parse(lines[2])
-
-
-var body=getBody(responseJson) || [];
-
-//console.log(body)
-
-var chat=[];
-
-chat.push(body?.[1]?.[0]);
-chat.push(body?.[1]?.[1]);
-chat.push(body?.[4]?.[0]?.[0]);
-
-/*Stores the recent chat info*/
-localStorage.setItem("geminiChatInfo",chat.toString());
-
-
-body=body?.[4]?.[0];
-
-var text=body?.[1]?.[0] || "";
-text=text.replace(/http:\/\/googleusercontent\.com\/\S+/g,'');
-var thoughts = body?.[37]?.[0]?.[0] || null;
-var images=[];
-
-for(var i in body?.[12]?.[1]){
-var img=body?.[12]?.[1]?.[i]
-images.push({
-url:img[0][0][0],
-alt:img[0][4],
-title:img[7][0]
-});
-
-text+=`<center><img alt="${img[0][4]}" src="${img[0][0][0]}"></center>`;
-}
-
-//console.log(text,"\n\n\n-------- \n\n",thoughts)
-
-
-
-
-
-
-let converter = new showdown.Converter();
-converter.setFlavor('github');
-let html = modifyTimestamps(converter.makeHtml(text));
-
-
-let thoughtsHtml=(thoughts != null) ? `<button onclick="(this.nextElementSibling.style.height=='auto') ? (this.children[0].style.transform='rotate(-90deg)',this.nextElementSibling.style.height='0') : (this.children[0].style.transform='rotate(90deg)',this.nextElementSibling.style.height='auto');" class="think" >Show Thinking 
-<svg xmlns="http://www.w3.org/2000/svg" style="transform:rotate(-90deg);margin-left:10px" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
-<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-</svg></button>
-<div class="geminiThoughts">
-<br>
-${converter.makeHtml(thoughts)}
-
-
-</div><br>` : "";
-
-document.getElementById("GeminiResponse").innerHTML=`<a href="https://gemini.google.com/chat/${chat[0].replace("c_","")}" >Go to the chat</a><br><br>
-
-${thoughtsHtml}
-
-
-
-<div class="geminiAnswer">
-${html}
-</div>
-`;
-
-
-}
-
-
-
-
-
-/*Main Gemini Function*/
-async function geminiInfo(){
-if(document.getElementById("GeminiResponse") == null){
-var GeminiRes=document.createElement("div");
-GeminiRes.setAttribute("style",`min-height:80px;max-height:400px;display:block;height:auto;overflow:scroll;font-weight:400;width:calc(92% - 20px);font-size:14px;padding:10px;position:relative;margin:auto;background:${d};border-radius:15px;margin-bottom:8px;`);
-GeminiRes.setAttribute("id","GeminiResponse");
-
-
-insertAfter(document.getElementById('ytproMainDivE'),GeminiRes);
-
-}else{
-var GeminiRes=document.getElementById("GeminiResponse");
-}
-
-
-document.getElementById("GeminiResponse").innerHTML=`
-<div class="geminiLoader"></div>`;
-
-var cookies=Android.getAllCookies(window.location.href);
-
-if(cookies.indexOf("__Secure-1PSID=") < 0){
-GeminiRes.innerHTML=`
-<center style="margin-top:15px">
-<span >Sign in to use Gemini<span>
-<br><br>
-<a href="https://accounts.google.com/ServiceLogin?service=youtube" >
-<button style="background:${c};color:${isD ? "#000" : "#fff"};font-weight:500;height:35px;width:90px;border-radius:25px;text-align:center;line-height:35px;">Sign In</button>
-</a>
-<br><br>
-
-</center>`;
-
-return;
-
-}
-
-
-/*checks if the user is logged in*/
-cookies=cookies.split(";");
-
-var secured="";
-
-cookies.forEach((x)=>{
-if(x.indexOf("__Secure-1PSID=") > -1 || x.indexOf("__Secure-1PSIDTS=") > -1)
-secured+=x+";";
-})
-
-
-
-var endpoint="https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate";
-var headers=JSON.stringify({
-"accept": "*/*",
-"accept-language": "en",
-"content-type":"application/x-www-form-urlencoded;charset=UTF-8",
-"x-goog-ext-525001261-jspb": GeminiModels[localStorage.getItem('geminiModel')], 
-"x-same-domain": "1",
-"cookie": secured,
-"Referer": "https://gemini.google.com/",
-"Referrer-Policy": "origin"
-});
-
-
-if(GeminiAT == ""){
-Android.getSNlM0e(secured);
-GeminiAT=await callbackSNlM0e();
-
-var sd = document.createElement('script');
-sd.src="//youtube.com/ytpro_cdn/npm/showdown/dist/showdown.min.js";
-document.body.appendChild(sd);
-
-}
-
-
-
-
-var prompt=localStorage.getItem('prompt').replaceAll("{url}",window.location.href).replaceAll("{videoId}",new URL(window.location.href).searchParams.get("v")).replaceAll("{title}",document.getElementsByClassName('slim-video-metadata-header')[0].textContent.replaceAll("|","").replaceAll("\\","").replaceAll("?","").replaceAll("*","").replaceAll("<","").replaceAll("/","").replaceAll(":","").replaceAll('"',"").replaceAll(">","")); 
-//`send me details with timestamps and images related to this youtube com video ${}`;
-// , including all the aspects and scopes with timestamp , add facts in the analysis as well ,Here's the youtube 
-
-
-
-var chat = null;
-
-if(localStorage.getItem("saveCInfo") == "true" && localStorage.getItem("geminiChatInfo") != null){
-chat = localStorage.getItem("geminiChatInfo").split(",");
-}
-
-const formData = new URLSearchParams();
-formData.append("f.req", JSON.stringify([
-null,
-JSON.stringify([[prompt],null,chat])
-]));
-
-formData.append("at", GeminiAT);
-
-
-
-Android.GeminiClient(endpoint,headers,formData.toString());
-var response=await callbackGeminiClient();
-
-handleGeminiResponse(response);
-
-}
-
-
 var volSvg=`<svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16" focusable="false" aria-hidden="true" style="pointer-events: none;filter:drop-shadow(0px 0px 1px black);position:absolute;top:10%"><path fill="#fff" d="M11.485 2.143 3.913 6.687A6 6 0 001 11.832v.338a6 6 0 002.913 5.144l7.572 4.543A1 1 0 0013 21V3a1.001 1.001 0 00-1.515-.857Zm6.88 2.079a1 1 0 00-.001 1.414 9 9 0 010 12.728 1 1 0 001.414 1.414 11 11 0 000-15.556 1 1 0 00-1.413 0Zm-2.83 2.828a1 1 0 000 1.415 5 5 0 010 7.07 1 1 0 001.415 1.415 6.999 6.999 0 000-9.9 1 1 0 00-1.415 0Z"></path></svg>`;
 var brtSvg=`<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="16" viewBox="0 0 24 24" width="16" style="filter:drop-shadow(0px 0px 1px black);position:absolute;top:10%;"><rect fill="none" height="24" width="24"/><path fill="#fff" d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0 c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2 c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1 C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06 c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41 l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41 c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36 c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg>`;
 
@@ -1740,123 +1416,6 @@ height:50px;width:100%;display:flex;overflow:auto;
 align-items:center;justify-content:center;padding-left:20px;padding-right:10px;
 `);
 ytproMainDivA.appendChild(ytproMainDiv);
-
-/*Gemini Button*/
-var ytproGemini=document.createElement("div");
-sty(ytproGemini);
-ytproGemini.style.width="115px";
-ytproGemini.style.height="calc(65% - 4.5px)";
-ytproGemini.style.position="relative";
-ytproGemini.style.background=`linear-gradient(${isD ? "#272727,#272727" : "#f2f2f2,#f2f2f2"}) padding-box , linear-gradient(16deg ,#4285f4 ,#9b72cb ,#d96570) border-box`;
-ytproGemini.style.border="2px solid transparent";
-ytproGemini.innerHTML=`
-<svg style="height:16px;width:16px" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z" fill="url(#prefix__paint0_radial_980_20147)"/><defs><radialGradient id="prefix__paint0_radial_980_20147" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"><stop offset=".067" stop-color="#9168C0"/><stop offset=".343" stop-color="#5684D1"/><stop offset=".672" stop-color="#1BA1E3"/></radialGradient></defs></svg>
-<span style="margin-left:4px">Gemini</span>
-<style type="text/css">
-#GeminiResponse img{
-max-width:90%;
-height:auto;
-border-radius:10px;
-margin-top:5px;
-}
-#GeminiResponse a{
-color:rgb(62,166,255);
-}
-.geminiLoader,.geminiLoader:before,.geminiLoader:after{
-content:'';
-height:10px;
-width:70%;
-position:absolute;
-top:15px;
-border-radius:5px;
-left:10px;
-background:${d};
-animation: geminiLoad 1s linear infinite alternate;
-}
-.geminiLoader:before{
-top:27px;
-left:0;
-}
-.geminiLoader:after{
-top:54px;
-left:0;
-width:90%;
-}
-@keyframes geminiLoad{
-0% {
-opacity:1;
-}
-100% {
-opacity:.4;
-}
-}
-.geminiThoughts{
-height:0;
-width:calc(100% - 30px);
-transition:5s;
-float:left;
-overflow:hidden;
-padding-left:5px;
-font-style:italic;
-border-left:3px solid ${d};
-display:block;
-float:none;
-clear:both;
-}
-.geminiAnswer{
-height:auto;
-width:100%;
-display:block;
-float:none;
-clear:both;
-}
-#GeminiResponse .think{
-background:transparent;
-font-size:1.45rem;
-width:calc(100% - 20px);
-height:20px;
-color:${isD ? "#ccc" : "#444"};
-margin-top:3px;
-text-align:left;
-display:flex;
-padding-left:5px;
-border-left:3px solid ${d};
-}
-</style>
-`;
-
-
-
-
-
-
-ytproMainDiv.appendChild(ytproGemini);
-
-
-ytproGemini.addEventListener("click",
-async function(){
-
-
-if(parseFloat(Android.getInfo()) < parseFloat(YTProVer)){
-updateModel();
-
-return;
-}
-
-geminiInfo();
-
-
-});
-
-
-
-
-
-
-
-
-
-
 
 /*Heart Button*/
 var ytproFavElem=document.createElement("div");

@@ -2,7 +2,6 @@ package com.google.android.youtube.pro;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -12,66 +11,76 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Rational;
-import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.WebSettings;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
-import android.widget.Button;
-
-// Import the separated components
-import com.google.android.youtube.pro.webview.YTProWebView;
-import com.google.android.youtube.pro.webview.YTProWebViewClient;
-import com.google.android.youtube.pro.webview.YTProWebChromeClient;
-import com.google.android.youtube.pro.webview.WebAppInterface;
-import com.google.android.youtube.pro.webview.BinaryStreamManager;
 
 import com.google.android.youtube.pro.receivers.MediaCommandReceiver;
+import com.google.android.youtube.pro.webview.BinaryStreamManager;
+import com.google.android.youtube.pro.webview.WebAppInterface;
+import com.google.android.youtube.pro.webview.YTProWebChromeClient;
+import com.google.android.youtube.pro.webview.YTProWebView;
+import com.google.android.youtube.pro.webview.YTProWebViewClient;
 
 public class MainActivity extends Activity {
 
+    /** Reflects the current H5 player orientation; used only for the PIP aspect ratio. */
     public boolean portrait = false;
     public boolean isPlaying = false;
     public boolean mediaSession = false;
     public boolean isPip = false;
-    public boolean dL = false;
 
     private YTProWebView web;
+    private YTProWebChromeClient chromeClient;
     private MediaCommandReceiver broadcastReceiver;
     private OnBackInvokedCallback backCallback;
     public BinaryStreamManager streamManager;
-    
-    
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
-        
+
         SharedPreferences prefs = getSharedPreferences("YTPRO", MODE_PRIVATE);
         if (!prefs.contains("bgplay")) {
             prefs.edit().putBoolean("bgplay", true).apply();
         }
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        load(false);
+        load();
     }
 
-    public void load(boolean dl) {
-              
-        
-        this.dL = dl;
+    /**
+     * Single entry point for WebView initialisation. Called exactly once per
+     * activity instance, so the WebView is never double-inflated or re-loaded.
+     */
+    private void load() {
         web = findViewById(R.id.web);
-        
-        web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setSupportZoom(true);
-        web.getSettings().setBuiltInZoomControls(true);
-        web.getSettings().setDisplayZoomControls(false);
-        web.getSettings().setDomStorageEnabled(true);
-        web.getSettings().setDatabaseEnabled(true);
-        web.getSettings().setMediaPlaybackRequiresUserGesture(false); 
-        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        WebSettings settings = web.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
+
+        // IMPORTANT: do NOT call web.setLayerType(View.LAYER_TYPE_HARDWARE, null).
+        // The WebView is already hardware accelerated via the manifest flag; forcing
+        // a hardware layer allocates an off-screen buffer that can produce black
+        // frames during rotation/resize and increases memory pressure.
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -91,27 +100,18 @@ public class MainActivity extends Activity {
                 url = sharedText;
             }
         }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-          web.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        }
-
 
         web.addJavascriptInterface(new WebAppInterface(this, web), "Android");
-        web.setWebChromeClient(new YTProWebChromeClient(this, web));
+        chromeClient = new YTProWebChromeClient(this, web);
+        web.setWebChromeClient(chromeClient);
         web.setWebViewClient(new YTProWebViewClient(this, web));
-        
+
         web.loadUrl(url);
 
         setupReceiver();
         setupBackNavigation();
-        streamManager = new BinaryStreamManager(web,this);
-        
-        
+        streamManager = new BinaryStreamManager(web, this);
     }
-         
-
-   
 
     private void setupReceiver() {
         broadcastReceiver = new MediaCommandReceiver(web);
@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
     }
 
     private void handleBackPress() {
-        if (web.canGoBack()) {
+        if (web != null && web.canGoBack()) {
             web.goBack();
         } else {
             finish();
@@ -146,6 +146,16 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         handleBackPress();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Keep the native immersive state in lock-step with the H5 fullscreen state
+        // after a rotation, otherwise the system bars reappear / the UI offsets.
+        if (chromeClient != null) {
+            chromeClient.onConfigurationChanged(newConfig);
+        }
     }
 
     @Override
@@ -166,14 +176,16 @@ public class MainActivity extends Activity {
 
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
-        web.evaluateJavascript(isInPictureInPictureMode ? "PIPlayer();" : "removePIP();", null);
+        if (web != null) {
+            web.evaluateJavascript(isInPictureInPictureMode ? "PIPlayer();" : "removePIP();", null);
+        }
         isPip = isInPictureInPictureMode;
     }
 
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        if (Build.VERSION.SDK_INT >= 26 && web.getUrl() != null && web.getUrl().contains("watch")) {
+        if (Build.VERSION.SDK_INT >= 26 && web != null && web.getUrl() != null && web.getUrl().contains("watch")) {
             if (isPlaying) {
                 try {
                     isPip = true;
@@ -196,14 +208,47 @@ public class MainActivity extends Activity {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
         stopService(new Intent(getApplicationContext(), ForegroundService.class));
-        if (broadcastReceiver != null) unregisterReceiver(broadcastReceiver);
+        if (broadcastReceiver != null) {
+            try {
+                unregisterReceiver(broadcastReceiver);
+            } catch (IllegalArgumentException ignored) {
+            }
+            broadcastReceiver = null;
+        }
         if (Build.VERSION.SDK_INT >= 33 && backCallback != null) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+            backCallback = null;
         }
         if (streamManager != null) {
             streamManager.cleanup();
+            streamManager = null;
         }
+        destroyWebView();
+        super.onDestroy();
+    }
+
+    /**
+     * Completely releases the WebView: stops loading, detaches it from its
+     * parent ViewGroup and calls destroy(), which is the documented way to
+     * avoid leaking the native rendering process.
+     */
+    private void destroyWebView() {
+        if (web == null) {
+            return;
+        }
+        web.removeJavascriptInterface("Android");
+        web.stopLoading();
+        web.setWebChromeClient(null);
+        web.setWebViewClient(null);
+        web.loadUrl("about:blank");
+        ViewGroup parent = (ViewGroup) web.getParent();
+        if (parent != null) {
+            parent.removeView(web);
+        }
+        web.removeAllViews();
+        web.destroy();
+        web = null;
+        chromeClient = null;
     }
 }

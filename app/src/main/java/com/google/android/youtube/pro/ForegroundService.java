@@ -322,8 +322,22 @@ public class ForegroundService extends Service {
 
     @Override
     public void onDestroy() {
+        if (updateReceiver != null) {
+            try {
+                unregisterReceiver(updateReceiver);
+            } catch (IllegalArgumentException ignored) {
+            }
+            updateReceiver = null;
+        }
+        if (mediaSession != null) {
+            try {
+                mediaSession.setActive(false);
+                mediaSession.release();
+            } catch (Exception ignored) {
+            }
+            mediaSession = null;
+        }
         super.onDestroy();
-        unregisterReceiver(updateReceiver);
     }
 
     @Override

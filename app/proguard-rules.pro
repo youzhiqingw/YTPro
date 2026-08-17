@@ -5,17 +5,17 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# WebView calls into the JavaScript interface reflectively, so the annotated
+# methods (and the class itself) must survive R8 shrinking/renaming.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-keep class com.google.android.youtube.pro.webview.WebAppInterface { *; }
+
+# Custom view is instantiated from layout XML via reflection.
+-keep class com.google.android.youtube.pro.webview.YTProWebView { <init>(...); }
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile

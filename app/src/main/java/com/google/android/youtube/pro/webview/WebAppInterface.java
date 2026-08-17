@@ -21,13 +21,10 @@ import android.os.Environment;
 import androidx.webkit.WebViewFeature;
 
 import com.google.android.youtube.pro.ForegroundService;
-import com.google.android.youtube.pro.GeminiWrapper;
 import com.google.android.youtube.pro.MainActivity;
 import com.google.android.youtube.pro.R;
 import com.google.android.youtube.pro.utils.DownloadUtils;
 import com.google.android.youtube.pro.utils.MediaMuxerUtils;
-
-import org.json.JSONObject;
 
 public class WebAppInterface {
 	private final MainActivity activity;
@@ -146,7 +143,11 @@ public class WebAppInterface {
 		intent.putExtra("icon", icon); intent.putExtra("title", title);
 		intent.putExtra("subtitle", subtitle); intent.putExtra("duration", duration);
 		intent.putExtra("currentPosition", 0); intent.putExtra("action", "play");
-		activity.startService(intent);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			activity.startForegroundService(intent);
+		} else {
+			activity.startService(intent);
+		}
 	}
 	
 	@JavascriptInterface
@@ -185,22 +186,6 @@ public class WebAppInterface {
 		.putExtra("icon", icon).putExtra("title", title)
 		.putExtra("subtitle", subtitle).putExtra("duration", duration)
 		.putExtra("currentPosition", ct).putExtra("action", action));
-	}
-	
-	@JavascriptInterface
-	public void getSNlM0e(String cookies) {
-		new Thread(() -> {
-			String response = GeminiWrapper.getSNlM0e(cookies);
-			activity.runOnUiThread(() -> web.evaluateJavascript("callbackSNlM0e.resolve(`" + response + "`)", null));
-		}).start();
-	}
-	
-	@JavascriptInterface
-	public void GeminiClient(String url, String headers, String body) {
-		new Thread(() -> {
-			JSONObject response = GeminiWrapper.getStream(url, headers, body);
-			activity.runOnUiThread(() -> web.evaluateJavascript("callbackGeminiClient.resolve(" + response + ")", null));
-		}).start();
 	}
 	
 	@JavascriptInterface

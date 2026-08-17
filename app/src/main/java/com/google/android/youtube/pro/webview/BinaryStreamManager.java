@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebMessagePortCompat;
@@ -20,9 +21,12 @@ import java.io.OutputStream;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import android.widget.Toast;
 
-
+/**
+ * Streams binary chunks (ArrayBuffer) from the H5 downloader into storage using
+ * the official androidx.webkit message-port API, which exposes the ArrayBuffer
+ * WebMessage support that the native android.webkit.WebMessage class hides.
+ */
 public class BinaryStreamManager {
 
     private final YTProWebView webView;
@@ -45,10 +49,8 @@ public class BinaryStreamManager {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER)) {
             Log.e("YTPRO_STREAM", "ArrayBuffer not supported on this device.");
             Toast.makeText(context, "ArrayBuffer not supported on this device.", Toast.LENGTH_SHORT).show();
-   
             return;
         }
-        
 
         WebMessagePortCompat[] channel = WebViewCompat.createWebMessageChannel(webView);
         WebMessagePortCompat localPort = channel[0];
@@ -66,9 +68,7 @@ public class BinaryStreamManager {
                     values.put(MediaStore.Downloads.RELATIVE_PATH, "Download/YTPRO");
                     values.put(MediaStore.Downloads.IS_PENDING, 1);
 
-                    Uri uri = resolver.insert(
-                            MediaStore.Downloads.getContentUri("external"), values);
-
+                    Uri uri = resolver.insert(MediaStore.Downloads.getContentUri("external"), values);
                     if (uri == null) {
                         Log.e("YTPRO_STREAM", "MediaStore insert returned null for: " + fileName);
                         return;
@@ -163,14 +163,6 @@ public class BinaryStreamManager {
         );
     }
 
-    // Returns the Uri for a file already written by this app (for muxer input)
-    public Uri getUriForFile(String fileName) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return fileUris.get(fileName);
-        }
-        return null;
-    }
-
     private String getMimeType(String fileName) {
         if (fileName.endsWith(".webm")) return "video/webm";
         if (fileName.endsWith(".mp4"))  return "video/mp4";
@@ -179,7 +171,19 @@ public class BinaryStreamManager {
         return "application/octet-stream";
     }
 
+    /** Closes every open stream and shuts down the executor. */
     public void cleanup() {
-        ioExecutor.shutdown();
+        for (OutputStream os : fileStreams.values()) {
+            try { os.flush(); os.close(); } catch (Exception ignored) {}
+        }
+        fileStreams.clear();
+
+        for (FileOutputStream fos : legacyStreams.values()) {
+            try { fos.flush(); fos.close(); } catch (Exception ignored) {}
+        }
+        legacyStreams.clear();
+
+        fileUris.clear();
+        ioExecutor.shutdownNow();
     }
 }

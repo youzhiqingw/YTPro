@@ -30,9 +30,6 @@
 
 
 ## Features
- * <img src='https://raw.githubusercontent.com/prateek-chaubey/YTPro/main/.github/img/gemini-logo-13486188-10900314-unscreen-ezgif.com-crop.gif' height=15 width=15 > Google Gemini
-   * Summarise Vidoes
-   * Customisable prompts and models
  * Video Downloader
  * Shorts Downloader
  * In-built Video and Audio Muxer
@@ -56,12 +53,6 @@
  * Almost 0 Internal Dependencies
  * Auto Updation of App
 
-
-## Gemini Prompt
-The available variables for gemini prompt are
-* `{url}` : The URL of the video
-* `{title}` : Title of the video
-* `{videoId}` : Video Id of the video
 
 ## ToDo
  * Enhance Audio

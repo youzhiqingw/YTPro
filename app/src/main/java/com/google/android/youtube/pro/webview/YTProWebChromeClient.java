@@ -1,11 +1,12 @@
 package com.google.android.youtube.pro.webview;
 
 import android.Manifest;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
@@ -13,64 +14,80 @@ import android.widget.FrameLayout;
 
 // Import the main files from the parent package
 import com.google.android.youtube.pro.MainActivity;
-import com.google.android.youtube.pro.R;
 
 public class YTProWebChromeClient extends WebChromeClient {
     private final MainActivity activity;
     private final YTProWebView web;
-    
+
     private View mCustomView;
     private WebChromeClient.CustomViewCallback mCustomViewCallback;
-    private int mOriginalOrientation;
     private int mOriginalSystemUiVisibility;
+    private int mOriginalRequestedOrientation;
 
     public YTProWebChromeClient(MainActivity activity, YTProWebView web) {
         this.activity = activity;
         this.web = web;
     }
 
+    /**
+     * No magic resource ids: let the page supply its own video poster.
+     * Returning null keeps behaviour consistent across devices and avoids
+     * a fragile hard-coded resource lookup.
+     */
     @Override
-    public Bitmap getDefaultVideoPoster() {
-       return BitmapFactory.decodeResource(activity.getApplicationContext().getResources(), 2130837573);
+    public android.graphics.Bitmap getDefaultVideoPoster() {
+        return null;
     }
 
     @Override
     public void onShowCustomView(View paramView, WebChromeClient.CustomViewCallback viewCallback) {
-        // 1. Determine orientation for FULL SCREEN
-        mOriginalOrientation = activity.portrait ?
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT :
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
-
-        if (activity.isPip) mOriginalOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            activity.getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
-            WindowManager.LayoutParams params = activity.getWindow().getAttributes();
-            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-            activity.getWindow().setAttributes(params);
-        }
-
+        // Re-entrant fullscreen request: release the previous view first.
         if (mCustomView != null) {
             onHideCustomView();
-            return;
         }
 
         mCustomView = paramView;
-        mOriginalSystemUiVisibility = activity.getWindow().getDecorView().getSystemUiVisibility();
-        
-        // 2. Set the activity to full screen orientation (Landscape usually)
-        activity.setRequestedOrientation(mOriginalOrientation);
-        
-        // Store portrait so onHideCustomView knows what to go back to
-        mOriginalOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-
         mCustomViewCallback = viewCallback;
-        ((FrameLayout) activity.getWindow().getDecorView()).addView(mCustomView, new FrameLayout.LayoutParams(-1, -1));
-        activity.getWindow().getDecorView().setSystemUiVisibility(3846);
+
+        // Remember exactly what to restore when we leave fullscreen.
+        mOriginalSystemUiVisibility = activity.getWindow().getDecorView().getSystemUiVisibility();
+        mOriginalRequestedOrientation = activity.getRequestedOrientation();
+
+        // Immersive layout so the custom view can draw under the status bar and cutout.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            activity.getWindow().setAttributes(params);
+            activity.getWindow().setFlags(
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        }
+
+        // Free, sensor driven rotation while the HTML5 player is fullscreen.
+        // This fixes the old behaviour that locked the activity to a single
+        // portrait/landscape sensor and then force-restored PORTRAIT on exit.
+        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+
+        FrameLayout decor = (FrameLayout) activity.getWindow().getDecorView();
+        decor.addView(mCustomView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        decor.setSystemUiVisibility(immersiveFlags());
     }
 
     @Override
     public void onHideCustomView() {
+        if (mCustomView == null) {
+            return;
+        }
+
+        FrameLayout decor = (FrameLayout) activity.getWindow().getDecorView();
+        decor.removeView(mCustomView);
+        mCustomView = null;
+
+        // Restore the system UI chrome.
+        decor.setSystemUiVisibility(mOriginalSystemUiVisibility);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
             WindowManager.LayoutParams params = activity.getWindow().getAttributes();
@@ -78,20 +95,35 @@ public class YTProWebChromeClient extends WebChromeClient {
             activity.getWindow().setAttributes(params);
         }
 
-        ((FrameLayout) activity.getWindow().getDecorView()).removeView(mCustomView);
-        mCustomView = null;
-        activity.getWindow().getDecorView().setSystemUiVisibility(mOriginalSystemUiVisibility);
-        
-        // 3. Set the activity BACK to the orientation saved right after going full screen (Portrait)
-        activity.setRequestedOrientation(mOriginalOrientation);
-        
-        // Reset state for the next time we enter full screen
-        mOriginalOrientation = activity.portrait ?
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT :
-                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        // Restore the exact orientation the activity had before fullscreen.
+        // Normally this is SCREEN_ORIENTATION_UNSPECIFIED, i.e. free rotation,
+        // which is what we want for a pure player experience.
+        activity.setRequestedOrientation(mOriginalRequestedOrientation);
 
-        mCustomViewCallback = null;
-        web.clearFocus();
+        if (mCustomViewCallback != null) {
+            mCustomViewCallback.onCustomViewHidden();
+            mCustomViewCallback = null;
+        }
+        web.requestFocus();
+    }
+
+    /**
+     * Keeps the immersive flags in sync after a rotation (which would otherwise
+     * drop the hidden-system-bars state and cause UI offset / black bars).
+     */
+    public void onConfigurationChanged(Configuration newConfig) {
+        if (mCustomView != null) {
+            activity.getWindow().getDecorView().setSystemUiVisibility(immersiveFlags());
+        }
+    }
+
+    private int immersiveFlags() {
+        return View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
     }
 
     @Override
@@ -102,6 +134,9 @@ public class YTProWebChromeClient extends WebChromeClient {
             } else {
                 request.grant(request.getResources());
             }
+        } else {
+            // Never leave a pending permission request hanging on non-YouTube origins.
+            request.deny();
         }
     }
 }

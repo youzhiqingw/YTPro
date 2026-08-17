@@ -1,0 +1,23 @@
+# Gradle build output
+.gradle/
+build/
+app/build/
+
+# Generated YTPRO assets (copied from scripts/ at build time)
+app/src/main/assets/ytpro/
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Signing keys and local secrets (never commit to VCS)
+*.jks
+*.keystore
+*.p12
+*.pk8
+keystore.properties
+keystore_base64.txt
