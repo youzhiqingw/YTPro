@@ -60,10 +60,10 @@ jobs:
             --title "YTPro v${VERSION}" \
             --notes "YTPro 是一套基于 WebView 的第三方 YouTube 客户端，专为低版本 Android（5.0+）优化，支持后台播放、去广告、视频下载、手势控制等功能。非 Google 官方产品。
 
-**版本**: ${VERSION}
-**构建号**: ${TAG}
-**最低系统**: Android 5.0+
-**签名方案**: v1 + v2 + v3" \
+          **版本**: ${VERSION}
+          **构建号**: ${TAG}
+          **最低系统**: Android 5.0+
+          **签名方案**: v1 + v2 + v3" \
             --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
