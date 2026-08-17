@@ -50,10 +50,16 @@ jobs:
 
       - name: Create GitHub Release
         run: |
-          gh release create latest app/build/outputs/apk/release/app-release.apk \
-            --title "Latest Release" \
-            --notes "Automated signed APK build from GitHub Actions" \
-            --clobber
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest app/build/outputs/apk/release/app-release.apk --clobber
+            gh release edit latest \
+              --title "Latest Release" \
+              --notes "Automated signed APK build from GitHub Actions"
+          else
+            gh release create latest app/build/outputs/apk/release/app-release.apk \
+              --title "Latest Release" \
+              --notes "Automated signed APK build from GitHub Actions"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
