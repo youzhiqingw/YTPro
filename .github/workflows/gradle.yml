@@ -48,6 +48,15 @@ jobs:
       - name: Build signed release APK
         run: ./gradlew assembleRelease --no-daemon
 
+      - name: Create GitHub Release
+        run: |
+          gh release create latest app/build/outputs/apk/release/app-release.apk \
+            --title "Latest Release" \
+            --notes "Automated signed APK build from GitHub Actions" \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
