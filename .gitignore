@@ -30,3 +30,4 @@ local.properties
 keystore.properties
 keystore_base64.txt
 remote_gradle_b64.txt
+docs/wizestream-assessment.md
