@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.03";
+var YTProVer="4.04";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -41,7 +41,9 @@ let holdActive=false;
 let holdOrigRate=1;
 let holdStartX=0;
 let holdStartY=0;
-const HOLD_SPEED=2;
+const HOLD_SPEED_DEFAULT=2;
+const HOLD_SPEED_MAX=4;
+const HOLD_SPEED_MIN=0.25;
 const HOLD_DELAY=500;
 const HOLD_MOVE_TOL=12;
 
@@ -212,11 +214,10 @@ subtree: true
 
 /*Add Settings Tab*/
 var addSettingsTab=()=>{
-// Only show the YTPro settings gear on the home page. On every other page
-// (subscriptions, library, watch, shorts, settings sheet, ...) it is redundant
-// and overlaps the page's own top-right icons, so remove it there.
+// Hide the YTPro settings gear on the home page. On watch, channel, shorts
+// and other pages keep it so the settings entry stays available there.
 var isHome=(window.location.pathname === "/" || window.location.pathname === "");
-if(!isHome){
+if(isHome){
   var existing=document.getElementById("setDiv");
   if(existing){existing.remove();}
   return;
@@ -1148,13 +1149,21 @@ function isHoldTarget(e){
   }catch(err){ return false; }
 }
 
+function holdSpeedValue(){
+  var v=parseFloat(localStorage.getItem("holdSpeedValue"));
+  if(isNaN(v)){ v=HOLD_SPEED_DEFAULT; }
+  if(v < HOLD_SPEED_MIN){ v=HOLD_SPEED_MIN; }
+  if(v > HOLD_SPEED_MAX){ v=HOLD_SPEED_MAX; }
+  return v;
+}
+
 function startHold(){
   holdTimer=null;
   var video=document.getElementsByClassName('video-stream')[0];
   if(!video) return;
   holdOrigRate = video.playbackRate || 1;
   holdActive = true;
-  try{ video.playbackRate = HOLD_SPEED; }catch(err){}
+  try{ video.playbackRate = holdSpeedValue(); }catch(err){}
   showHoldIndicator();
 }
 
@@ -1180,7 +1189,7 @@ function showHoldIndicator(){
     el.setAttribute("style",`position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.7);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;`);
     document.body.appendChild(el);
   }
-  el.textContent = HOLD_SPEED + "x";
+  el.textContent = holdSpeedValue() + "x";
   el.style.display = "block";
 }
 
@@ -1883,6 +1892,10 @@ function removePIP(){
 
 isPIP=false;
 pauseAllowed = true;
+var v=document.getElementsByClassName('video-stream')[0];
+if(v){ try{ v.style.removeProperty('object-fit'); }catch(err){} }
+try{ window.dispatchEvent(new Event('resize')); }catch(err){}
+try{ applyAspect(); }catch(err){}
 if(document.fullscreenElement || document.webkitFullscreenElement){
 try{ document.exitFullscreen(); }catch(err){}
 }
@@ -1922,6 +1935,8 @@ try{ document.exitFullscreen(); }catch(err){}
 v.play();
 pauseAllowed = false;
 isPIP=true;
+try{ window.dispatchEvent(new Event('resize')); }catch(err){}
+if(v){ try{ v.style.setProperty('object-fit','contain','important'); }catch(err){} }
 
 }
 
