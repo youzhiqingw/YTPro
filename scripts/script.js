@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.02";
+var YTProVer="4.03";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -36,6 +36,14 @@ audio:["Opus","Mp4a"]
 let touchstartY = 0;
 let touchendY = 0;
 let initialDistance=null;
+let holdTimer=null;
+let holdActive=false;
+let holdOrigRate=1;
+let holdStartX=0;
+let holdStartY=0;
+const HOLD_SPEED=2;
+const HOLD_DELAY=500;
+const HOLD_MOVE_TOL=12;
 
 //swipe controls
 var sens=0.005;
@@ -61,6 +69,7 @@ localStorage.setItem(x,"true");
 });
 
 }
+if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","true");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -736,6 +745,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <div>Miniplayer Gesture <span data-action="sttCnf" data-value="gesM" style="${sttCnf(0,0,"gesM")}" ><b style="${sttCnf(0,1,"gesM")}"></b></span></div>
 <br>
 <div>Force Zoom <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
+<div>Hold to Speed <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
 <br>
 <div>Background Play <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
 <br>
@@ -1130,6 +1140,82 @@ stopProp=false;
 
 
 
+/*Long-press to temporarily boost playback speed*/
+function isHoldTarget(e){
+  try{
+    var cn = (e.target && e.target.className && e.target.className.toString) ? e.target.className.toString() : "";
+    return (cn.indexOf("video-stream") > -1 || cn.indexOf("player-controls-background") > -1);
+  }catch(err){ return false; }
+}
+
+function startHold(){
+  holdTimer=null;
+  var video=document.getElementsByClassName('video-stream')[0];
+  if(!video) return;
+  holdOrigRate = video.playbackRate || 1;
+  holdActive = true;
+  try{ video.playbackRate = HOLD_SPEED; }catch(err){}
+  showHoldIndicator();
+}
+
+function cancelHold(){
+  if(holdTimer){ clearTimeout(holdTimer); holdTimer=null; }
+}
+
+function releaseHold(){
+  cancelHold();
+  if(holdActive){
+    var video=document.getElementsByClassName('video-stream')[0];
+    if(video){ try{ video.playbackRate = holdOrigRate; }catch(err){} }
+    holdActive=false;
+  }
+  hideHoldIndicator();
+}
+
+function showHoldIndicator(){
+  var el=document.getElementById("ytproHoldIndicator");
+  if(!el){
+    el=document.createElement("div");
+    el.id="ytproHoldIndicator";
+    el.setAttribute("style",`position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.7);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;`);
+    document.body.appendChild(el);
+  }
+  el.textContent = HOLD_SPEED + "x";
+  el.style.display = "block";
+}
+
+function hideHoldIndicator(){
+  var el=document.getElementById("ytproHoldIndicator");
+  if(el) el.style.display = "none";
+}
+
+document.body.addEventListener('touchstart', e => {
+  if(localStorage.getItem("holdSpeed") != "true") return;
+  if(e.touches.length !== 1){ releaseHold(); return; }
+  if(!isHoldTarget(e)) return;
+  cancelHold();
+  var t=e.touches[0];
+  holdStartX=t.pageX; holdStartY=t.pageY;
+  holdTimer=setTimeout(startHold, HOLD_DELAY);
+}, { capture:true, passive:true });
+
+document.body.addEventListener('touchmove', e => {
+  if(!holdTimer) return;
+  if(e.touches.length !== 1){ cancelHold(); return; }
+  var t=e.touches[0];
+  if(Math.hypot(t.pageX-holdStartX, t.pageY-holdStartY) > HOLD_MOVE_TOL){
+    cancelHold();
+  }
+}, { capture:true, passive:true });
+
+document.body.addEventListener('touchend', e => {
+  releaseHold();
+}, { capture:true, passive:true });
+
+document.body.addEventListener('touchcancel', e => {
+  releaseHold();
+}, { capture:true, passive:true });
+
 navigation.addEventListener("navigate", e => {
 if(e.destination.url.indexOf("watch") > -1 || e.destination.url.indexOf("shorts") > -1){
   dislikes="...";
@@ -1480,6 +1566,28 @@ function(){
 PIPlayer(true);
 });
 
+/*Open in Browser Button*/
+var ytproOpenVidElem=document.createElement("div");
+sty(ytproOpenVidElem);
+ytproOpenVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg><span style="margin-left:8px">Open in Browser<span>`;
+ytproMainDiv.appendChild(ytproOpenVidElem);
+ytproOpenVidElem.addEventListener("click",
+function(){
+var u=window.location.href.replace("m.youtube.com","www.youtube.com");
+try{
+var v=document.getElementsByClassName("video-stream")[0];
+if(v){ v.pause(); }
+}catch{}
+Android.oplink(u);
+});
+/*Aspect Ratio Button*/
+var ytproAspectElem=document.createElement("div");
+sty(ytproAspectElem);
+ytproAspectElem.id="ytproAspectBtn";
+ytproAspectElem.innerHTML=aspectLabel();
+ytproMainDiv.appendChild(ytproAspectElem);
+ytproAspectElem.addEventListener("click",cycleAspect);
+
 
 
 
@@ -1775,7 +1883,9 @@ function removePIP(){
 
 isPIP=false;
 pauseAllowed = true;
-document.exitFullscreen();
+if(document.fullscreenElement || document.webkitFullscreenElement){
+try{ document.exitFullscreen(); }catch(err){}
+}
  
 document.getElementsByClassName('video-stream')[0].pause();
 setTimeout(()=>{
@@ -1806,7 +1916,9 @@ return;
 }
 
 
-v.requestFullscreen();
+if(document.fullscreenElement || document.webkitFullscreenElement){
+try{ document.exitFullscreen(); }catch(err){}
+}
 v.play();
 pauseAllowed = false;
 isPIP=true;
@@ -2192,6 +2304,39 @@ el.appendChild(elm);
 
 
 
+/*Aspect ratio control*/
+function aspectMode(){
+  return localStorage.getItem("aspectMode") || "fit";
+}
+
+function applyAspect(){
+  var v=document.getElementsByClassName('video-stream')[0];
+  if(!v) return;
+  var m=aspectMode();
+  var fit = m === "fill" ? "fill" : (m === "crop" ? "cover" : "contain");
+  try{ v.style.objectFit = fit; }catch(err){}
+}
+
+function cycleAspect(){
+  var m=aspectMode();
+  var next = m === "fit" ? "fill" : (m === "crop" ? "fit" : "crop");
+  localStorage.setItem("aspectMode", next);
+  applyAspect();
+  updateAspectButton();
+}
+
+function aspectLabel(){
+  var m=aspectMode();
+  var t = m === "fill" ? "Fill" : (m === "crop" ? "Crop" : "Fit");
+  return `<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 5v14H5V5h14zm0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg><span style="margin-left:8px">Aspect: ${t}<span>`;
+}
+
+function updateAspectButton(){
+  var b=document.getElementById("ytproAspectBtn");
+  if(b){ b.innerHTML=aspectLabel(); }
+}
+
+
 /*Mutation Observer*/
 //as i have been developing YTPRO for almost 4 years now
 //thus it still contains the code which i used when i was a
@@ -2216,6 +2361,9 @@ adsBlock();
 
 //mE button
 addMaxButton();
+
+//aspect ratio
+applyAspect();
 
 //settingsTab
 addSettingsTab();
