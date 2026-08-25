@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.04";
+var YTProVer="4.05";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -214,14 +214,12 @@ subtree: true
 
 /*Add Settings Tab*/
 var addSettingsTab=()=>{
-// Hide the YTPro settings gear on the home page. On watch, channel, shorts
-// and other pages keep it so the settings entry stays available there.
-var isHome=(window.location.pathname === "/" || window.location.pathname === "");
-if(isHome){
-  var existing=document.getElementById("setDiv");
-  if(existing){existing.remove();}
-  return;
-}
+// The injected YTPro top-bar settings gear is hidden on every page. The
+// native YouTube player settings gear lives inside the player controls and is
+// never touched here.
+var existing=document.getElementById("setDiv");
+if(existing){existing.remove();}
+return;
 if(document.getElementById("setDiv") == null){
 var setDiv=document.createElement("div");
 setDiv.setAttribute("style",`
@@ -1231,12 +1229,12 @@ if(e.destination.url.indexOf("watch") > -1 || e.destination.url.indexOf("shorts"
 fDislikes(e.destination.url);
 checkSponsors(e.destination.url);
 }
-// 路由跳转时重新评估齿轮显隐，确保离开主页齿轮消失、返回主页齿轮恢复
+// 路由跳转时重新评估齿轮显隐，确保任何页面都不渲染注入齿轮
 addSettingsTab();
 });
 
 // YouTube SPA 路由跳转（pushState/popstate/浏览器前进后退）时，重新评估
-// 齿轮显隐，确保离开主页后齿轮自动消失，返回主页后自动恢复。
+// 齿轮显隐，确保任何页面都不残留注入齿轮。
 // MutationObserver 依赖 DOM 变化，纯 hash 或无 DOM 变更的跳转可能漏触发。
 window.addEventListener("popstate", function(){
   addSettingsTab();
@@ -1888,10 +1886,35 @@ return false;
 
 
 ///PIP MODE CONFIG
+/*PIP layout override: while the activity is inside the system PiP window the
+whole WebView is scaled down, so the page chrome (top bar, injected settings
+gear, nav) would cover the video. A temporary stylesheet hides that chrome and
+stretches the player container to the PiP viewport. Exiting PiP only needs to
+drop this one node to restore the original page layout, so no inline style
+bookkeeping is required and nothing outside PiP is affected.*/
+var YTPRO_PIP_STYLE_ID="ytpro-pip-style";
+function applyPipLayout(){
+if(document.getElementById(YTPRO_PIP_STYLE_ID)) return;
+if(!document.getElementById("player-container-id")) return;
+var st=document.createElement("style");
+st.id=YTPRO_PIP_STYLE_ID;
+st.textContent=`
+html,body{margin:0 !important;padding:0 !important;overflow:hidden !important;background:#000 !important;}
+ytm-mobile-topbar-renderer,ytm-pivot-bar-renderer,#setDiv,#settingsprodiv{display:none !important;}
+#player-container-id{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:100% !important;height:100% !important;max-height:none !important;margin:0 !important;transform:none !important;z-index:2147483646 !important;}
+#player-container-id .html5-video-player,#player-container-id .html5-video-container,#player-container-id video{width:100% !important;height:100% !important;}
+`;
+(document.head||document.documentElement).appendChild(st);
+}
+function clearPipLayout(){
+var st=document.getElementById(YTPRO_PIP_STYLE_ID);
+if(st) st.remove();
+}
 function removePIP(){
 
 isPIP=false;
 pauseAllowed = true;
+try{ clearPipLayout(); }catch(err){}
 var v=document.getElementsByClassName('video-stream')[0];
 if(v){ try{ v.style.removeProperty('object-fit'); }catch(err){} }
 try{ window.dispatchEvent(new Event('resize')); }catch(err){}
@@ -1935,6 +1958,7 @@ try{ document.exitFullscreen(); }catch(err){}
 v.play();
 pauseAllowed = false;
 isPIP=true;
+try{ applyPipLayout(); }catch(err){}
 try{ window.dispatchEvent(new Event('resize')); }catch(err){}
 if(v){ try{ v.style.setProperty('object-fit','contain','important'); }catch(err){} }
 
