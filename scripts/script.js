@@ -1434,11 +1434,18 @@ elB.innerHTML=`${brtSvg}<div style="position:absolute;bottom:5%;left:calc(50% - 
 if(!document.getElementById("brtS")){
 document.getElementById("player-container-id").appendChild(elB);
 
+let brtStartY=0;
+elB.addEventListener("touchstart",(e)=>{
+e.stopPropagation();
+brtStartY=e.touches[0].pageY;
+},{ passive: false });
+
 elB.addEventListener("touchmove",(e)=>{
 e.preventDefault();
+e.stopPropagation();
 elB.style.opacity="1";
 
-var diff= touchstartY - e.touches[0].pageY;
+var diff= brtStartY - e.touches[0].pageY;
 
 if(diff > 0){
 brt +=sens;
@@ -1449,8 +1456,6 @@ brt -=sens;
 if(brt > 1) brt=1;
 if(brt < 0) brt =0;
 
-touchstartY=e.touches[0].pageY;
-
 Android.setBrightness(brt);
 document.getElementById("brtIS").style.height=brt*100+"%";
 
@@ -1459,6 +1464,7 @@ document.getElementById("brtIS").style.height=brt*100+"%";
 
 //hide the element after touch endas
 elB.addEventListener("touchend",(e)=>{
+e.stopPropagation();
 elB.style.opacity="0";
 },{ passive: false });
 
@@ -1471,11 +1477,18 @@ elB.style.opacity="0";
 if(!document.getElementById("volS")){
 document.getElementById("player-container-id").appendChild(el);
 
+let volStartY=0;
+el.addEventListener("touchstart",(e)=>{
+e.stopPropagation();
+volStartY=e.touches[0].pageY;
+},{ passive: false });
+
 el.addEventListener("touchmove",(e)=>{
 e.preventDefault();
+e.stopPropagation();
 el.style.opacity="1";
 
-var diff= touchstartY - e.touches[0].pageY;
+var diff= volStartY - e.touches[0].pageY;
 
 if(diff > 0){
 vol +=sens;
@@ -1486,8 +1499,6 @@ vol -=sens;
 if(vol > 1) vol=1;
 if(vol < 0) vol =0;
 
-touchstartY=e.touches[0].pageY;
-
 Android.setVolume(vol);
 document.getElementById("volIS").style.height=vol * 100 +"%";
 
@@ -1497,6 +1508,7 @@ document.getElementById("volIS").style.height=vol * 100 +"%";
 
 //hide the element after touch endas , yes endas
 el.addEventListener("touchend",(e)=>{
+e.stopPropagation();
 el.style.opacity="0";
 },{ passive: false });
 
@@ -1519,6 +1531,54 @@ el.style.opacity="0";
 
 
 
+
+/*Independent speed button on the right side of the player*/
+try{
+var pc=document.getElementById("player-container-id");
+if(pc && !document.getElementById("ytproSpeedBtn")){
+
+var spBtn=document.createElement("div");
+spBtn.setAttribute("id","ytproSpeedBtn");
+spBtn.setAttribute("style",`position:absolute;right:16%;top:50%;transform:translateY(-50%);z-index:10;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:13px;font-weight:600;pointer-events:auto;cursor:pointer;`);
+spBtn.textContent="1x";
+pc.appendChild(spBtn);
+
+var spPanel=document.createElement("div");
+spPanel.setAttribute("id","ytproSpeedPanel");
+spPanel.setAttribute("style",`position:absolute;right:calc(16% + 50px);top:50%;transform:translateY(-50%);z-index:11;display:none;background:#212121;color:#fff;border-radius:8px;padding:6px 0;box-shadow:0 2px 10px rgba(0,0,0,.5);pointer-events:auto;min-width:88px;max-height:70%;overflow:auto;`);
+pc.appendChild(spPanel);
+
+var rates=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,4,10];
+for(var i=0;i<rates.length;i++){
+(function(r){
+var it=document.createElement("div");
+it.textContent=r+"x";
+it.setAttribute("style",`padding:8px 14px;font-size:14px;cursor:pointer;text-align:center;`);
+it.addEventListener("click",function(e){
+e.stopPropagation();
+var video=document.getElementsByClassName("video-stream")[0];
+if(video){try{video.playbackRate=r;}catch(err){}}
+spBtn.textContent=r+"x";
+try{
+var slider=document.getElementById("slider");
+if(slider){slider.value=String(r);slider.dispatchEvent(new Event("input",{bubbles:true}));}
+}catch(err){}
+spPanel.style.display="none";
+});
+spPanel.appendChild(it);
+})(rates[i]);
+}
+
+spBtn.addEventListener("click",function(e){
+e.stopPropagation();
+var video=document.getElementsByClassName("video-stream")[0];
+var cur=video?(video.playbackRate||1):1;
+spBtn.textContent=cur+"x";
+spPanel.style.display=(spPanel.style.display==="none")?"block":"none";
+});
+
+}
+}catch(err){}
 
 /*Check If Element Already Exists*/
 if(document.getElementById("ytproMainDivE") == null){
