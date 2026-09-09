@@ -31,3 +31,5 @@ keystore.properties
 keystore_base64.txt
 remote_gradle_b64.txt
 docs/wizestream-assessment.md
+docs/scene24_亮度音量调节_UI审查.md
+docs/scene24_全屏齿轮修复方案.md

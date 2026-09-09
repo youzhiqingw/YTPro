@@ -1393,6 +1393,9 @@ document.getElementById("diskl").innerHTML=dislikes;
 }catch(e){}
 
 
+/* [DISABLED 2026-09-09] 亮度/音量滑条体验较差，且在全屏播放时透明覆盖层
+   拦截了 YouTube 原生齿轮设置的点击。暂时整体禁用此功能。
+   详见 docs/scene24_全屏齿轮修复方案.md。原始代码保留以便后续优化。
 //Volume and brightness slider 
 try{
 
@@ -1521,6 +1524,7 @@ el.style.opacity="0";
 }catch(e){
   console.log(e)
 }
+*/
 
 
 
