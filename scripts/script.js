@@ -305,53 +305,6 @@ var addSettingsTab=()=>{
 // YTPro 设置入口改为"我的"页 Premium 福利下方的原生风格列表项"YT PRO Settings",
 // 见 injectYtproSettingsEntry()。之后绝对不可恢复此浮层齿轮。
 injectYtproSettingsEntry();
-return; // 以下 setDiv 浮层齿轮创建逻辑已废弃,永不执行,保留仅为对照。
-// The injected YTPro top-bar settings gear is hidden on every page. The
-// native YouTube player settings gear lives inside the player controls and is
-// never touched here.
-if(document.getElementById("setDiv") == null){
-var setDiv=document.createElement("div");
-setDiv.setAttribute("style",`
-position:fixed;
-z-index:2147483647;
-width:40px;
-height:40px;
-display:flex;
-align-items:center;
-justify-content:center;
-pointer-events:auto;
-cursor:pointer;
-`);
-setDiv.setAttribute("id","setDiv");
-var svg=document.createElement("span");
-svg.style.pointerEvents="none";
-svg.innerHTML=`<svg fill="${ window.location.href.indexOf("watch") < 0 ? c : "#fff" }" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"  id="hSett"><path d="M12.844 1h-1.687a2 2 0 00-1.962 1.616 3 3 0 01-3.92 2.263 2 2 0 00-2.38.891l-.842 1.46a2 2 0 00.417 2.507 3 3 0 010 4.525 2 2 0 00-.417 2.507l.843 1.46a2 2 0 002.38.892 3.001 3.001 0 013.918 2.263A2 2 0 0011.157 23h1.686a2 2 0 001.963-1.615 3.002 3.002 0 013.92-2.263 2 2 0 002.38-.892l.842-1.46a2 2 0 00-.418-2.507 3 3 0 010-4.526 2 2 0 00.418-2.508l-.843-1.46a2 2 0 00-2.38-.891 3 3 0 01-3.919-2.263A2 2 0 0012.844 1Zm-1.767 2.347a6 6 0 00.08-.347h1.687a4.98 4.98 0 002.407 3.37 4.98 4.98 0 004.122.4l.843 1.46A4.98 4.98 0 0018.5 12a4.98 4.98 0 001.716 3.77l-.843 1.46a4.98 4.98 0 00-4.123.4A4.979 4.979 0 0012.843 21h-1.686a4.98 4.98 0 00-2.408-3.371 4.999 4.999 0 00-4.12-.399l-.844-1.46A4.979 4.979 0 005.5 12a4.98 4.98 0 00-1.715-3.77l.842-1.459a4.98 4.98 0 004.123-.399 4.981 4.981 0 002.327-3.025ZM16 12a4 4 0 11-7.999 0 4 4 0 018 0Zm-4 2a2 2 0 100-4 2 2 0 000 4Z"></path></svg>
-`;
-setDiv.appendChild(svg);
-
-// Fixed positioning keeps the gear out of the header's flex layout, which
-// previously pushed it onto the search / more buttons. Place it just to the
-// right of the logo (or the back button) and clear of the top-right controls.
-(document.body||document.documentElement).appendChild(setDiv);
-setDiv.style.top="8px";
-var left=56;
-var anchor=document.getElementsByTagName("ytm-home-logo")[0];
-if(anchor){
-  var r=anchor.getBoundingClientRect();
-  if(r && r.width>0 && r.right>0 && r.right < window.innerWidth/2){
-    left=Math.round(r.right)+8;
-  }
-}
-setDiv.style.left=left+"px";
-
-setDiv.addEventListener("click",function(ev){
-  ev.preventDefault();
-  ev.stopPropagation();
-  window.location.hash="settings";
-});
-}
-
-
 };
 
 
