@@ -60,6 +60,7 @@ localStorage.setItem("fzoom","false");
 localStorage.setItem("devMode","false");
 
 localStorage.setItem("block_60fps","false");
+localStorage.setItem("freezeHome","false");
 
 YTPROCodecs.video.forEach((x)=>{
 localStorage.setItem(x,"true");
@@ -74,6 +75,39 @@ if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","
 if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
+}
+
+// Freeze Homepage: when ON, returning to home does not re-fetch/re-rank the
+// feed. The first home browse response is cached in memory only (not persisted)
+// and replayed on return; manual scroll-down continuations still load normally.
+// Session-only cache means a fresh app open always shows a new home feed.
+var freezeHomeCache=null;
+if(!window.__ytproFreezeHome){
+window.__ytproFreezeHome=true;
+var _ytproFetch=window.fetch.bind(window);
+window.fetch=function(input,init){
+  if(localStorage.getItem("freezeHome")=="true"){
+    try{
+      var u=(typeof input==="string")?input:(input&&input.url?input.url:"");
+      if(u&&u.indexOf("youtubei/v1/browse")>-1&&init&&init.body){
+        var b=(typeof init.body==="string")?init.body:(init.body?init.body.toString():"");
+        var isHome=/"browseId"\s*:\s*"FEwhat_to_watch"/.test(b);
+        var isCont=/"continuation"/.test(b);
+        if(isHome&&!isCont){
+          if(freezeHomeCache!=null){
+            return Promise.resolve(new Response(freezeHomeCache,{status:200,statusText:"OK",headers:{"Content-Type":"application/json"}}));
+          }
+          return _ytproFetch(input,init).then(function(r){
+            var c=r.clone();
+            c.text().then(function(t){freezeHomeCache=t;}).catch(function(){});
+            return r;
+          });
+        }
+      }
+    }catch(e){}
+  }
+  return _ytproFetch(input,init);
+};
 }
 
 
@@ -772,6 +806,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 </button>
 <br>
 <div>Developer Mode <span data-action="sttCnf" data-value="devMode" style="${sttCnf(0,0,"devMode")}" ><b style="${sttCnf(0,1,"devMode")}"></b></span></div>
+<div>Freeze Homepage <span data-action="sttCnf" data-value="freezeHome" style="${sttCnf(0,0,"freezeHome")}" ><b style="${sttCnf(0,1,"freezeHome")}" ></b></span></div>
 <br><br>
 <p style="font-size:1.25rem;width:calc(100% - 20px);margin:auto;text-align:left"><b style="font-weight:bold">Disclaimer</b>: This is an educational project aimed at showcasing javascript injection into a webview to enhance productivity.<br>
 You can find the source code at <a href="https://www.youtube.com/redirect?q=https://github.com/prateek-chaubey/YTPRO" style="font-family:monospace;" > https://github.com/prateek-chaubey/YTPRO</a>
