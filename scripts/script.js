@@ -2673,24 +2673,16 @@ function injectSpeedControls(){
 resolution and let the Android side store it in the system gallery
 (Pictures/YTPro).*/
 function ytproScreenshot(){
-  var v=document.querySelector(".video-stream");
-  if(!v || !v.videoWidth || v.readyState < 2){
-    try{ Android.showToast("Video is not ready"); }catch(err){}
-    return;
-  }
+  // YouTube 视频是跨域 MSE，canvas.toDataURL 会因画布被污染抛 SecurityError，
+  // 改由 Android 端用 PixelCopy 直接截 WebView 画面，绕开跨域限制。
   try{
-    var cnv=document.createElement("canvas");
-    cnv.width=v.videoWidth;
-    cnv.height=v.videoHeight;
-    cnv.getContext("2d").drawImage(v,0,0,cnv.width,cnv.height);
-    var data=cnv.toDataURL("image/jpeg",0.95).split(",")[1];
-
     var d=new Date();
     function p(n){ return (n<10?"0":"")+n; }
-    var id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24)||"shot";
+    var id="";
+    try{ id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24); }catch(e){ id=""; }
+    if(!id){ id="shot"; }
     var name="YTPro_"+id+"_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+".jpg";
-
-    Android.saveScreenshot(name,data);
+    Android.captureScreenshot(name);
     ytproFlash();
   }catch(err){
     try{ Android.showToast("Screenshot failed"); }catch(err2){}
