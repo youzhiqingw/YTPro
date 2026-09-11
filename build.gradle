@@ -2,6 +2,9 @@
 
 buildscript {
 	repositories {
+		// 国内镜像：优先从阿里云拉取，避免 dl.google.com 被墙导致 aapt2 等依赖下载失败（TLS 握手被中断）
+		maven { url 'https://maven.aliyun.com/repository/google' }
+		maven { url 'https://maven.aliyun.com/repository/public' }
 		google()
 		mavenCentral()
 	}
@@ -14,6 +17,9 @@ buildscript {
 
 allprojects {
 	repositories {
+		// 国内镜像：优先从阿里云拉取，避免 Google 域名 TLS 握手被中断
+		maven { url 'https://maven.aliyun.com/repository/google' }
+		maven { url 'https://maven.aliyun.com/repository/public' }
 		google()
 		mavenCentral()
 	}

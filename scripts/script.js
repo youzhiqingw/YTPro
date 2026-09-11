@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.05";
+var YTProVer="4.07";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -38,7 +38,6 @@ let touchendY = 0;
 let initialDistance=null;
 let holdTimer=null;
 let holdActive=false;
-let holdOrigRate=1;
 let holdStartX=0;
 let holdStartY=0;
 const HOLD_SPEED_DEFAULT=2;
@@ -72,6 +71,7 @@ localStorage.setItem(x,"true");
 
 }
 if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","true");}
+if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -745,6 +745,8 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <br>
 <div>Force Zoom <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
 <div>Hold to Speed <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
+<div>Speed Button <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
+<div>Hold Speed Value <span data-action="holdSpeedVal" style="position:absolute;right:10px;height:auto;width:auto;min-width:56px;padding:2px 12px;border-radius:14px;background:${isD ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)"};color:${isD ? "#fff" : "#151515"};font-size:1.1rem;font-weight:600;text-align:center;">${holdSpeedValue()}x</span></div>
 <br>
 <div>Background Play <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
 <br>
@@ -816,6 +818,15 @@ var actionsList={
   },
   sttCnf:(button,action)=>{
     sttCnf(button,action);
+  },
+  holdSpeedVal:(el)=>{
+    var vals=[1.5,2,2.5,3,3.5,4];
+    var i=vals.indexOf(holdSpeedValue());
+    if(i<0){ i=vals.indexOf(HOLD_SPEED_DEFAULT); }
+    if(i<0){ i=0; }
+    var next=vals[(i+1)%vals.length];
+    localStorage.setItem("holdSpeedValue",String(next));
+    el.textContent=next+"x";
   },
   issues:()=>{
     Android.oplink('https://github.com/prateek-chaubey/YTPRO/issues');
@@ -942,6 +953,16 @@ x.style.background=s[2];
 x.children[0].style.left="auto";
 x.children[0].style.right="2px";
 x.children[0].style.background=s[0];
+}
+
+if(z == "ytproSpeedBtn"){
+/*off: drop the pill right away; on: the injector re-creates it on the next
+DOM mutation, and calling it here covers the case where nothing mutates*/
+if(localStorage.getItem("ytproSpeedBtn") == "false"){
+ytproRemoveSpeedPill();
+}else{
+injectSpeedControls();
+}
 }
 
 if(localStorage.getItem("fzoom") == "false"){
@@ -1139,6 +1160,70 @@ stopProp=false;
 
 
 
+/*YTPro unified playback-rate state. Every speed entry point (preset panel,
+native slider, native speed menu) just writes video.playbackRate; the
+ratechange listener in bindSpeedWatch syncs YTProSpeed and the pill label
+back, so no entry point can drift out of step. Priority order:
+active hold gesture (temporary) > session rate > 1x on a new video.*/
+const YTPRO_SPEED_PRESETS=[0.5,0.75,0.9,1,1.25,1.5,1.75,2,4,8];
+var YTProSpeed={
+  current:1,
+  videoId:null,
+  set:function(rate){
+    this.current=rate;
+    var v=document.querySelector(".video-stream");
+    if(v){ try{ v.playbackRate=rate; }catch(err){} }
+    try{
+      var s=document.getElementById("slider");
+      if(s){ s.value=String(rate); }
+    }catch(err){}
+    this.updateLabel(rate);
+  },
+  updateLabel:function(rate){
+    var r=(typeof rate=="number")?rate:this.current;
+    var p=document.getElementById("ytproSpeedPill");
+    if(p){ p.textContent=r+"x"; }
+    var panel=document.getElementById("ytproSpeedPanel");
+    if(panel){
+      panel.querySelectorAll("[data-rate]").forEach(function(it){
+        var on=Math.abs(parseFloat(it.getAttribute("data-rate"))-r)<0.001;
+        it.style.background=on?"rgba(255,255,255,.18)":"transparent";
+        it.style.fontWeight=on?"700":"400";
+      });
+    }
+  },
+  ensureVideoReset:function(video){
+    var id=ytproWatchId();
+    if(this.videoId===id) return;
+    this.videoId=id;
+    this.current=1;
+    if(video){ try{ video.playbackRate=1; }catch(err){} }
+    this.updateLabel(1);
+  }
+};
+
+function ytproWatchId(){
+  try{
+    var v=new URLSearchParams(window.location.search).get("v");
+    if(v){ return v; }
+  }catch(err){}
+  return window.location.pathname;
+}
+
+function bindSpeedWatch(video){
+  if(!video || video.__ytproRateWatch){ return; }
+  video.__ytproRateWatch=true;
+  video.addEventListener("ratechange",function(){
+    if(holdActive){ return; }
+    var r=video.playbackRate||1;
+    if(Math.abs(r-YTProSpeed.current)>0.001){ YTProSpeed.current=r; }
+    YTProSpeed.updateLabel(r);
+  });
+  video.addEventListener("loadeddata",function(){
+    YTProSpeed.ensureVideoReset(video);
+  });
+}
+
 /*Long-press to temporarily boost playback speed*/
 function isHoldTarget(e){
   try{
@@ -1159,7 +1244,6 @@ function startHold(){
   holdTimer=null;
   var video=document.getElementsByClassName('video-stream')[0];
   if(!video) return;
-  holdOrigRate = video.playbackRate || 1;
   holdActive = true;
   try{ video.playbackRate = holdSpeedValue(); }catch(err){}
   showHoldIndicator();
@@ -1173,7 +1257,7 @@ function releaseHold(){
   cancelHold();
   if(holdActive){
     var video=document.getElementsByClassName('video-stream')[0];
-    if(video){ try{ video.playbackRate = holdOrigRate; }catch(err){} }
+    if(video){ try{ video.playbackRate = YTProSpeed.current; }catch(err){} }
     holdActive=false;
   }
   hideHoldIndicator();
@@ -1536,54 +1620,6 @@ el.style.opacity="0";
 
 
 
-/*Independent speed button on the right side of the player*/
-try{
-var pc=document.getElementById("player-container-id");
-if(pc && !document.getElementById("ytproSpeedBtn")){
-
-var spBtn=document.createElement("div");
-spBtn.setAttribute("id","ytproSpeedBtn");
-spBtn.setAttribute("style",`position:absolute;right:16%;top:50%;transform:translateY(-50%);z-index:10;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:13px;font-weight:600;pointer-events:auto;cursor:pointer;`);
-spBtn.textContent="1x";
-pc.appendChild(spBtn);
-
-var spPanel=document.createElement("div");
-spPanel.setAttribute("id","ytproSpeedPanel");
-spPanel.setAttribute("style",`position:absolute;right:calc(16% + 50px);top:50%;transform:translateY(-50%);z-index:11;display:none;background:#212121;color:#fff;border-radius:8px;padding:6px 0;box-shadow:0 2px 10px rgba(0,0,0,.5);pointer-events:auto;min-width:88px;max-height:70%;overflow:auto;`);
-pc.appendChild(spPanel);
-
-var rates=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3,4,10];
-for(var i=0;i<rates.length;i++){
-(function(r){
-var it=document.createElement("div");
-it.textContent=r+"x";
-it.setAttribute("style",`padding:8px 14px;font-size:14px;cursor:pointer;text-align:center;`);
-it.addEventListener("click",function(e){
-e.stopPropagation();
-var video=document.getElementsByClassName("video-stream")[0];
-if(video){try{video.playbackRate=r;}catch(err){}}
-spBtn.textContent=r+"x";
-try{
-var slider=document.getElementById("slider");
-if(slider){slider.value=String(r);slider.dispatchEvent(new Event("input",{bubbles:true}));}
-}catch(err){}
-spPanel.style.display="none";
-});
-spPanel.appendChild(it);
-})(rates[i]);
-}
-
-spBtn.addEventListener("click",function(e){
-e.stopPropagation();
-var video=document.getElementsByClassName("video-stream")[0];
-var cur=video?(video.playbackRate||1):1;
-spBtn.textContent=cur+"x";
-spPanel.style.display=(spPanel.style.display==="none")?"block":"none";
-});
-
-}
-}catch(err){}
-
 /*Check If Element Already Exists*/
 if(document.getElementById("ytproMainDivE") == null){
 
@@ -1752,6 +1788,9 @@ ytoldV=window.location.pathname;
 }*/
 
 
+}else{
+/*Non-video pages must not keep any YTPro player controls around*/
+ytproRemoveSpeedControls();
 }
 
 }
@@ -2359,47 +2398,197 @@ Ve.style.transform="scale(1)";
 }
 
 
-async function extraSpeed(){
+function extraSpeed(){
   var el=document.querySelector(".ytwVariableSpeedControllerViewModelButtonContainer");
  if(!el) return;
- 
- 
-const slider = document.getElementById("slider");
 
-if(slider.max==10) return;
+
+const slider = document.getElementById("slider");
+if(!slider || slider.max==10) return;
 
 slider.max = 10;
 slider.ariaValueMax = "10";
 
 slider.addEventListener("input", () => {
   const video = document.querySelector('.video-stream');
-  if (video) video.playbackRate = parseFloat(slider.value);
+  if (video){ video.playbackRate = parseFloat(slider.value); }
 });
 
 if(el.children.length >= 6) el.children[0].remove();
 
-if(!document.getElementById("10xSpeed")){
-
-var elm=document.createElement("ytw-variable-speed-controller-speed-button-view-model");
-
-elm.id="10xSpeed";
-elm.className="ytwVariableSpeedControllerSpeedButtonViewModelHost ytwVariableSpeedControllerViewModelPlaybackSpeedButton";
-
-
-elm.insertAdjacentHTML("beforeend",`<button-view-model class="ytSpecButtonViewModelHost"><button class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeS ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="" aria-disabled="false" style=""><div class="ytSpecButtonShapeNextButtonTextContent ytSpecButtonShapeNextElevatedContent">10x</div><yt-touch-feedback-shape aria-hidden="true" class="ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse"><div class="ytSpecTouchFeedbackShapeStroke"></div><div class="ytSpecTouchFeedbackShapeFill"></div></yt-touch-feedback-shape><yt-light-shape aria-hidden="true" class="contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal" style="--yt-light-wash-opacity: 0; --yt-light-wash-x: 0px; --yt-light-wash-y: 0px; --yt-light-wash-size: 0px;"><div class="contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal" style=""></div></yt-light-shape></button></button-view-model>`);
-
-elm.addEventListener("click", () => {
-   // document.querySelector('.video-stream').playbackRate = 10;
-    slider.value=10;
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-
-});
-
-el.appendChild(elm);
-
-
 }
 
+/* ---- YTPro controls living inside the native player controls bar ---- */
+/*The speed pill and the screenshot pill are appended to the native controls
+row that also holds the native settings gear, so they share its height and
+show/hide together with it. They only ever exist on /watch pages: every other
+route removes them (see pkc) and the injector below re-checks on each call.
+The preset panel itself is anchored to the player container, positioned above
+the pill, and closes on outside tap or when the controls row goes away.*/
+
+function ytproRemoveSpeedControls(){
+  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){ el.remove(); }
+  });
+}
+
+function ytproRemoveSpeedPill(){
+  ["ytproSpeedPill","ytproSpeedPanel"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){ el.remove(); }
+  });
+}
+
+function ytproPillStyle(){
+  return "height:32px;min-width:32px;padding:0 12px;margin-left:6px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600;pointer-events:auto;cursor:pointer;";
+}
+
+function buildSpeedPanel(){
+  var panel=document.createElement("div");
+  panel.id="ytproSpeedPanel";
+  panel.setAttribute("style","position:absolute;z-index:2147483646;width:104px;background:rgba(18,18,18,.96);color:#fff;border-radius:12px;padding:6px 0;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:auto;");
+  YTPRO_SPEED_PRESETS.forEach(function(r){
+    var it=document.createElement("div");
+    it.setAttribute("data-rate",String(r));
+    it.textContent=r+"x";
+    it.setAttribute("style","padding:9px 0;font-size:14px;text-align:center;cursor:pointer;");
+    it.addEventListener("click",function(e){
+      e.stopPropagation();
+      YTProSpeed.set(r);
+      closePanel();
+    });
+    panel.appendChild(it);
+  });
+  ["touchstart","click"].forEach(function(ev){
+    panel.addEventListener(ev,function(e){ e.stopPropagation(); },{capture:true,passive:ev=="touchstart"});
+  });
+  var closePanel=function(){
+    if(panel.parentNode){ panel.remove(); }
+    document.removeEventListener("touchstart",onDocDown,true);
+    document.removeEventListener("mousedown",onDocDown,true);
+  };
+  var onDocDown=function(e){
+    if(panel.contains(e.target)){ return; }
+    var pill=document.getElementById("ytproSpeedPill");
+    if(pill && pill.contains(e.target)){ return; }
+    closePanel();
+  };
+  setTimeout(function(){
+    document.addEventListener("touchstart",onDocDown,true);
+    document.addEventListener("mousedown",onDocDown,true);
+  },0);
+  return panel;
+}
+
+function toggleSpeedPanel(pill){
+  var old=document.getElementById("ytproSpeedPanel");
+  if(old){ old.remove(); return; }
+
+  var panel=buildSpeedPanel();
+  var host=document.getElementById("player-container-id")||document.body;
+  host.appendChild(panel);
+  YTProSpeed.updateLabel(YTProSpeed.current);
+
+  var hr=host.getBoundingClientRect();
+  var pr=pill.getBoundingClientRect();
+  var left=pr.left-hr.left+pr.width/2-panel.offsetWidth/2;
+  left=Math.max(8,Math.min(left,hr.width-panel.offsetWidth-8));
+  panel.style.left=left+"px";
+  var top=pr.top-hr.top-panel.offsetHeight-10;
+  if(top<8){ top=pr.bottom-hr.top+10; }
+  panel.style.top=top+"px";
+}
+
+function injectSpeedControls(){
+  var video=document.querySelector(".video-stream");
+  if(video){ bindSpeedWatch(video); }
+
+  if(window.location.href.indexOf("youtube.com/watch") < 0){ ytproRemoveSpeedControls(); return; }
+
+  if(video){ YTProSpeed.ensureVideoReset(video); }
+
+  var row=document.querySelector(".ytwVariableSpeedControllerViewModelButtonContainer");
+  if(!row){ return; } /*native controls hidden right now; the observer retries*/
+
+  var pill=document.getElementById("ytproSpeedPill");
+  if(pill && !pill.isConnected){ pill.remove(); pill=null; }
+  if(pill && localStorage.getItem("ytproSpeedBtn") == "false"){
+    pill.remove(); pill=null;
+    ytproRemoveSpeedPill();
+  }
+  if(!pill && localStorage.getItem("ytproSpeedBtn") != "false"){
+    pill=document.createElement("div");
+    pill.id="ytproSpeedPill";
+    pill.setAttribute("style",ytproPillStyle());
+    pill.textContent=YTProSpeed.current+"x";
+    pill.addEventListener("click",function(e){
+      e.stopPropagation();
+      toggleSpeedPanel(pill);
+    });
+    pill.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
+    row.appendChild(pill);
+  }
+  if(pill && pill.parentElement!==row){ row.appendChild(pill); }
+
+  var shot=document.getElementById("ytproShotBtn");
+  if(shot && !shot.isConnected){ shot.remove(); shot=null; }
+  if(!shot){
+    shot=document.createElement("div");
+    shot.id="ytproShotBtn";
+    shot.title="Screenshot";
+    shot.setAttribute("style",ytproPillStyle()+"padding:0 10px;");
+    shot.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 24 24" width="18" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
+    shot.addEventListener("click",function(e){
+      e.stopPropagation();
+      ytproScreenshot();
+    });
+    shot.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
+    row.appendChild(shot);
+  }
+  if(shot && shot.parentElement!==row){ row.appendChild(shot); }
+
+  /*controls row went away (auto-hide/rebuild): drop the open panel too*/
+  var panel=document.getElementById("ytproSpeedPanel");
+  if(panel && (!pill || !pill.isConnected)){ panel.remove(); }
+}
+
+/*One-tap HD screenshot: grab the current frame at the video's native
+resolution and let the Android side store it in the system gallery
+(Pictures/YTPro).*/
+function ytproScreenshot(){
+  var v=document.querySelector(".video-stream");
+  if(!v || !v.videoWidth || v.readyState < 2){
+    try{ Android.showToast("Video is not ready"); }catch(err){}
+    return;
+  }
+  try{
+    var cnv=document.createElement("canvas");
+    cnv.width=v.videoWidth;
+    cnv.height=v.videoHeight;
+    cnv.getContext("2d").drawImage(v,0,0,cnv.width,cnv.height);
+    var data=cnv.toDataURL("image/jpeg",0.95).split(",")[1];
+
+    var d=new Date();
+    function p(n){ return (n<10?"0":"")+n; }
+    var id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24)||"shot";
+    var name="YTPro_"+id+"_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+".jpg";
+
+    Android.saveScreenshot(name,data);
+    ytproFlash();
+  }catch(err){
+    try{ Android.showToast("Screenshot failed"); }catch(err2){}
+  }
+}
+
+function ytproFlash(){
+  var host=document.getElementById("player-container-id");
+  if(!host){ return; }
+  var f=document.createElement("div");
+  f.setAttribute("style","position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;opacity:.85;z-index:2147483646;pointer-events:none;transition:opacity .18s ease-out;");
+  host.appendChild(f);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.style.opacity="0"; }); });
+  setTimeout(function(){ f.remove(); },260);
 }
 
 
@@ -2456,7 +2645,10 @@ const observer = new MutationObserver(() => {
 
 //speed
 
-extraSpeed(); 
+extraSpeed();
+
+//ytpro speed pill + screenshot pill inside the native controls bar
+injectSpeedControls();
   
 //ads Block
 adsBlock();

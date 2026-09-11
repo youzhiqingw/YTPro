@@ -238,4 +238,53 @@ public class WebAppInterface {
 			Toast.makeText(activity, activity.getString(R.string.no_pip), Toast.LENGTH_SHORT).show();
 		}
 	}
+
+	@JavascriptInterface
+	public void saveScreenshot(String name, String base64) {
+		new Thread(() -> {
+			try {
+				byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+				String savedName = storeImage(name, data);
+				Toast.makeText(activity.getApplicationContext(), "Screenshot saved: " + savedName, Toast.LENGTH_SHORT).show();
+			} catch (SecurityException e) {
+				activity.runOnUiThread(() -> Toast.makeText(activity, R.string.grant_storage, Toast.LENGTH_SHORT).show());
+			} catch (Exception e) {
+				Toast.makeText(activity.getApplicationContext(), "Screenshot failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+			}
+		}).start();
+	}
+
+	// API 29+: MediaStore with RELATIVE_PATH needs no storage permission.
+	// Older devices write straight into the public Pictures dir and hand it
+	// to MediaScanner so it shows up in gallery apps.
+	private String storeImage(String name, byte[] data) throws Exception {
+		if (Build.VERSION.SDK_INT >= 29) {
+			android.content.ContentValues values = new android.content.ContentValues();
+			values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name);
+			values.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+			values.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/YTPro");
+			values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 1);
+			Uri uri = activity.getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+			if (uri == null) throw new Exception("MediaStore insert failed");
+			try (java.io.OutputStream os = activity.getContentResolver().openOutputStream(uri)) {
+				os.write(data);
+			}
+			values.clear();
+			values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0);
+			activity.getContentResolver().update(uri, values, null, null);
+			return name;
+		} else {
+			if (Build.VERSION.SDK_INT > 22 && activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
+				throw new SecurityException("storage permission not granted");
+			}
+			java.io.File dir = new java.io.File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "YTPro");
+			if (!dir.exists() && !dir.mkdirs()) throw new Exception("cannot create Pictures/YTPro");
+			java.io.File out = new java.io.File(dir, name);
+			try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
+				fos.write(data);
+			}
+			android.media.MediaScannerConnection.scanFile(activity.getApplicationContext(), new String[]{out.getAbsolutePath()}, new String[]{"image/jpeg"}, null);
+			return name;
+		}
+	}
 }
