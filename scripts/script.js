@@ -2473,8 +2473,9 @@ Clicking the pill opens a single horizontal strip of presets right below it;
 one tap applies - no nested dialogs. Nothing is ever appended to
 .ytwVariableSpeedControllerViewModelButtonContainer (that crowded YouTube's
 own speed sheet and clipped its preset numbers).
-Screenshot: standalone round button on the left edge, vertically centered,
-only on /watch, faded out whenever the native controls auto-hide.*/
+Screenshot: round button inside the native control bar (sibling of
+CC/settings/autoplay, like the speed pill), shown/hidden by YouTube's own
+ytp-autohide chrome CSS, only on /watch.*/
 
 function ytproPlayerEl(){
   return document.getElementById("movie_player") || document.querySelector(".html5-video-player");
@@ -2487,12 +2488,6 @@ function ytproRemoveSpeedControls(){
   });
   if(ytproAutohideObs){ ytproAutohideObs.disconnect(); }
   ytproAutohideObs=null;
-  if(ytproShotPosTimer){ clearTimeout(ytproShotPosTimer); ytproShotPosTimer=null; }
-  if(ytproShotReposBound){
-    ytproShotReposBound=false;
-    window.removeEventListener("orientationchange",ytproShotReposOrientation);
-    window.removeEventListener("resize",ytproShotReposResize);
-  }
 }
 
 function ytproRemoveSpeedPill(){
@@ -2506,12 +2501,6 @@ var ytproAutohideObs=null;
 function bindAutohideWatch(player){
   if(ytproAutohideObs){ return; }
   ytproAutohideObs=new MutationObserver(function(){
-    var shot=document.getElementById("ytproShotBtn");
-    if(shot){
-      var hidden=player.classList.contains("ytp-autohide");
-      shot.style.opacity=hidden?"0":"1";
-      shot.style.pointerEvents=hidden?"none":"auto";
-    }
     if(player.classList.contains("ytp-autohide")){
       var panel=document.getElementById("ytproSpeedPanel");
       if(panel){ panel.remove(); }
@@ -2520,71 +2509,41 @@ function bindAutohideWatch(player){
   ytproAutohideObs.observe(player,{attributes:true,attributeFilter:["class"]});
 }
 
-var ytproShotPosTimer=null;
-var ytproShotReposBound=false;
-function ytproPositionShot(shot){
-  var player=ytproPlayerEl();
-  if(!player || !shot){ return; }
-  var prect=player.getBoundingClientRect();
-  if(!prect || prect.width<=0 || prect.height<=0){ return; }
-  var sw=shot.offsetWidth||42;
-  var sh=shot.offsetHeight||42;
-  /*Relative to the player's own box: clamp so the button always stays
-  inside the visible picture area, no matter the layout/orientation.*/
-  var margin=10;
-  var top=(prect.height-sh)/2;
-  top=Math.max(margin,Math.min(top,prect.height-sh-margin));
-  var left=margin;
-  left=Math.max(margin,Math.min(left,prect.width-sw-margin));
-  shot.style.top=top+"px";
-  shot.style.left=left+"px";
-}
-
-function ytproShotReposOrientation(){
-  setTimeout(function(){ var s=document.getElementById("ytproShotBtn"); if(s){ ytproPositionShot(s); } },80);
-}
-function ytproShotReposResize(){
-  if(ytproShotPosTimer){ clearTimeout(ytproShotPosTimer); }
-  ytproShotPosTimer=setTimeout(function(){
-    var s=document.getElementById("ytproShotBtn");
-    if(s){ ytproPositionShot(s); }
-  },80);
-}
-function bindShotReposition(){
-  if(ytproShotReposBound){ return; }
-  ytproShotReposBound=true;
-  window.addEventListener("orientationchange",ytproShotReposOrientation);
-  window.addEventListener("resize",ytproShotReposResize);
-}
-
 function injectShotButton(){
-  var player=ytproPlayerEl();
-  var pc=document.getElementById("player-container-id");
-  var host=player||pc;
+  /*Screenshot button lives inside the native control bar (sibling of
+  CC/settings/autoplay, same slot pattern as the speed pill), so YouTube's
+  own ytp-autohide chrome CSS shows/hides it together with those buttons.
+  The old standalone-overlay + custom opacity observer design failed to
+  re-show on tap (its autohide state diverged from the real controls).*/
+  var gear=document.querySelector(".ytp-settings-button");
+  var cc=document.querySelector(".ytp-subtitles-button");
+  var auto=document.querySelector(".ytp-autonav-toggle-button");
+  var anchor=auto||cc||gear;
+  if(!anchor || !anchor.isConnected){ return; } /*controls hidden right now; the MutationObserver driver retries*/
+  var host=anchor.parentElement;
   if(!host){ return; }
-  bindShotReposition();
   var shot=document.getElementById("ytproShotBtn");
-  if(shot && !shot.isConnected){ shot.remove(); shot=null; }
+  if(shot && (!shot.isConnected || shot.parentElement!==host)){ shot.remove(); shot=null; }
   if(!shot){
     shot=document.createElement("div");
     shot.id="ytproShotBtn";
     shot.title="Screenshot";
-    shot.setAttribute("style","position:absolute;left:0;top:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.55);z-index:40;cursor:pointer;transition:opacity .2s;");
+    shot.setAttribute("style","display:flex;align-items:center;justify-content:center;width:40px;height:40px;color:#fff;pointer-events:auto;cursor:pointer;text-shadow:0 0 2px rgba(0,0,0,.5);");
     shot.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
     shot.addEventListener("click",function(e){
       e.stopPropagation();
       ytproScreenshot();
     });
     shot.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
-    host.appendChild(shot);
   }
-  if(player){
-    bindAutohideWatch(player);
-    var hidden=player.classList.contains("ytp-autohide");
-    shot.style.opacity=hidden?"0":"1";
-    shot.style.pointerEvents=hidden?"none":"auto";
+  /*Place next to the speed pill if present, otherwise right before the
+  native anchor. Re-insert only when the parent or neighbour changes so
+  re-injection by the MutationObserver driver never churns the DOM.*/
+  var pill=document.getElementById("ytproSpeedPill");
+  var before=(pill && pill.isConnected && pill.parentElement===host)?pill:anchor;
+  if(shot.parentElement!==host || shot.nextElementSibling!==before){
+    host.insertBefore(shot,before);
   }
-  ytproPositionShot(shot);
 }
 
 function buildSpeedStrip(){
@@ -2650,6 +2609,9 @@ function injectSpeedControls(){
   if(window.location.href.indexOf("youtube.com/watch") < 0){ ytproRemoveSpeedControls(); return; }
 
   if(video){ YTProSpeed.ensureVideoReset(video); }
+
+  var player=ytproPlayerEl();
+  if(player){ bindAutohideWatch(player); }
 
   injectShotButton();
 
