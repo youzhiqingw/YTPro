@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.07";
+var YTProVer="4.08";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -1187,8 +1187,8 @@ var YTProSpeed={
     if(panel){
       panel.querySelectorAll("[data-rate]").forEach(function(it){
         var on=Math.abs(parseFloat(it.getAttribute("data-rate"))-r)<0.001;
-        it.style.background=on?"rgba(255,255,255,.18)":"transparent";
-        it.style.fontWeight=on?"700":"400";
+        it.style.background=on?"rgba(255,255,255,.35)":"rgba(255,255,255,.12)";
+        it.style.fontWeight=on?"700":"600";
       });
     }
   },
@@ -1644,29 +1644,41 @@ ytproMainDivA.appendChild(ytproMainDiv);
 var ytproFavElem=document.createElement("div");
 sty(ytproFavElem);
 if(!isHeart()){
-ytproFavElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0V0z" fill="none"/><path fill="${c}" d="M19.66 3.99c-2.64-1.8-5.9-.96-7.66 1.1-1.76-2.06-5.02-2.91-7.66-1.1-1.4.96-2.28 2.58-2.34 4.29-.14 3.88 3.3 6.99 8.55 11.76l.1.09c.76.69 1.93.69 2.69-.01l.11-.1c5.25-4.76 8.68-7.87 8.55-11.75-.06-1.7-.94-3.32-2.34-4.28zM12.1 18.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg><span style="margin-left:8px">Heart<span>`;
+ytproFavElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0V0z" fill="none"/><path fill="${c}" d="M19.66 3.99c-2.64-1.8-5.9-.96-7.66 1.1-1.76-2.06-5.02-2.91-7.66-1.1-1.4.96-2.28 2.58-2.34 4.29-.14 3.88 3.3 6.99 8.55 11.76l.1.09c.76.69 1.93.69 2.69-.01l.11-.1c5.25-4.76 8.68-7.87 8.55-11.75-.06-1.7-.94-3.32-2.34-4.28zM12.1 18.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg><span style="margin-left:8px">收藏<span>`;
 }else{
-ytproFavElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0V0z" fill="none"/><path fill="${c}" d="M13.35 20.13c-.76.69-1.93.69-2.69-.01l-.11-.1C5.3 15.27 1.87 12.16 2 8.28c.06-1.7.93-3.33 2.34-4.29 2.64-1.8 5.9-.96 7.66 1.1 1.76-2.06 5.02-2.91 7.66-1.1 1.41.96 2.28 2.59 2.34 4.29.14 3.88-3.3 6.99-8.55 11.76l-.1.09z"/></svg><span style="margin-left:8px">Heart<span>`;
+ytproFavElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0V0z" fill="none"/><path fill="${c}" d="M13.35 20.13c-.76.69-1.93.69-2.69-.01l-.11-.1C5.3 15.27 1.87 12.16 2 8.28c.06-1.7.93-3.33 2.34-4.29 2.64-1.8 5.9-.96 7.66 1.1 1.76-2.06 5.02-2.91 7.66-1.1 1.41.96 2.28 2.59 2.34 4.29.14 3.88-3.3 6.99-8.55 11.76l-.1.09z"/></svg><span style="margin-left:8px">已收藏<span>`;
 }
 ytproMainDiv.appendChild(ytproFavElem);
 ytproFavElem.addEventListener("click",()=>{ytProHeart(ytproFavElem);});
 
 
 
+/*Hand the download off to the external downloader (YTDLnis) instead of the
+built-in flow: share the current video URL via the Android bridge. Falls
+back to the built-in download panel if the bridge is unavailable.*/
+function ytproSendToDownloader(){
+  var u=window.location.href.replace("m.youtube.com","www.youtube.com");
+  try{
+    Android.sendToDownloader(u);
+  }catch(err){
+    window.location.hash="download";
+  }
+}
+
 /*Download Button*/
 var ytproDownVidElem=document.createElement("div");
 sty(ytproDownVidElem);
-ytproDownVidElem.innerHTML=`${downBtn.replace('width="18"','width="24"').replace('height="18"','height="24"')}<span style="margin-left:2px">Download<span>`;
+ytproDownVidElem.innerHTML=`${downBtn.replace('width="18"','width="24"').replace('height="18"','height="24"')}<span style="margin-left:2px">下载<span>`;
 ytproMainDiv.appendChild(ytproDownVidElem);
 ytproDownVidElem.addEventListener("click",
 function(){
-window.location.hash="download";
+ytproSendToDownloader();
 });
 
 /*PIP Button*/
 var ytproPIPVidElem=document.createElement("div");
 sty(ytproPIPVidElem);
-ytproPIPVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M18 7h-6c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V8c0-.55-.45-1-1-1zm3-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm-1 16.01H4c-.55 0-1-.45-1-1V5.98c0-.55.45-1 1-1h16c.55 0 1 .45 1 1v12.03c0 .55-.45 1-1 1z"/></svg><span style="margin-left:8px">PIP Mode<span>`;
+ytproPIPVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M18 7h-6c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V8c0-.55-.45-1-1-1zm3-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm-1 16.01H4c-.55 0-1-.45-1-1V5.98c0-.55.45-1 1-1h16c.55 0 1 .45 1 1v12.03c0 .55-.45 1-1 1z"/></svg><span style="margin-left:8px">画中画<span>`;
 ytproMainDiv.appendChild(ytproPIPVidElem);
 ytproPIPVidElem.addEventListener("click",
 function(){
@@ -1676,7 +1688,7 @@ PIPlayer(true);
 /*Open in Browser Button*/
 var ytproOpenVidElem=document.createElement("div");
 sty(ytproOpenVidElem);
-ytproOpenVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg><span style="margin-left:8px">Open in Browser<span>`;
+ytproOpenVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg><span style="margin-left:8px">在浏览器中打开<span>`;
 ytproMainDiv.appendChild(ytproOpenVidElem);
 ytproOpenVidElem.addEventListener("click",
 function(){
@@ -1732,7 +1744,7 @@ ysDown.innerHTML=downBtn.replaceAll(`${c}`,`#fff`).replace(`width="24"`,`width="
 
 ysDown.addEventListener("click",
 function(){
-window.location.hash="download";
+ytproSendToDownloader();
 });
 
 
@@ -1949,8 +1961,8 @@ title:ytplayer.config.args.raw_player_response?.videoDetails?.title.replaceAll("
 
 
 var g="16";
-var h=`<span style="margin-left:8px">Heart<span>`;
-(window.location.href.indexOf('youtube.com/shorts') > -1) ? h=``:h=`<span style="margin-left:8px">Heart<span>`;
+var h=`<span style="margin-left:8px">收藏<span>`;
+(window.location.href.indexOf('youtube.com/shorts') > -1) ? h=``:h=`<span style="margin-left:8px">收藏<span>`;
 (window.location.href.indexOf('youtube.com/shorts') > -1) ? g="24" : g="24" ;
 
 
@@ -1965,6 +1977,7 @@ x.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="${g}" height="${g}" 
 var j=JSON.parse(localStorage.getItem("hearts") || "{}");
 j[vid]=vDetails;
 localStorage.setItem("hearts",JSON.stringify(j));
+if(window.location.href.indexOf('youtube.com/shorts') < 0){ h=`<span style="margin-left:8px">已收藏<span>`; }
 x.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="${g}" height="${g}" viewBox="0 0 24 24" ><path d="M0 0h24v24H0V0z" fill="none"/><path fill="${(window.location.href.indexOf('youtube.com/shorts') > -1) ? "#fff" : c }" d="M13.35 20.13c-.76.69-1.93.69-2.69-.01l-.11-.1C5.3 15.27 1.87 12.16 2 8.28c.06-1.7.93-3.33 2.34-4.29 2.64-1.8 5.9-.96 7.66 1.1 1.76-2.06 5.02-2.91 7.66-1.1 1.41.96 2.28 2.59 2.34 4.29.14 3.88-3.3 6.99-8.55 11.76l-.1.09z"/></svg>${h}`;
 }
 
@@ -2418,19 +2431,36 @@ if(el.children.length >= 6) el.children[0].remove();
 
 }
 
-/* ---- YTPro controls living inside the native player controls bar ---- */
-/*The speed pill and the screenshot pill are appended to the native controls
-row that also holds the native settings gear, so they share its height and
-show/hide together with it. They only ever exist on /watch pages: every other
-route removes them (see pkc) and the injector below re-checks on each call.
-The preset panel itself is anchored to the player container, positioned above
-the pill, and closes on outside tap or when the controls row goes away.*/
+/* ---- YTPro player controls ---- */
+/*Speed button: injected into the native controls row right before the
+autoplay toggle (fallback: CC button, then settings gear), so it shares the
+line with autoplay / CC / gear and hides together with them. The whole
+cluster is shifted left by one native button slot (margin-right on the row
+container) so the gear lands where CC used to be, per the agreed layout.
+Clicking the pill opens a single horizontal strip of presets right below it;
+one tap applies - no nested dialogs. Nothing is ever appended to
+.ytwVariableSpeedControllerViewModelButtonContainer (that crowded YouTube's
+own speed sheet and clipped its preset numbers).
+Screenshot: standalone round button on the left edge, vertically centered,
+only on /watch, faded out whenever the native controls auto-hide.*/
+
+function ytproPlayerEl(){
+  return document.getElementById("movie_player") || document.querySelector(".html5-video-player");
+}
 
 function ytproRemoveSpeedControls(){
   ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn"].forEach(function(id){
     var el=document.getElementById(id);
     if(el){ el.remove(); }
   });
+  if(ytproAutohideObs){ ytproAutohideObs.disconnect(); }
+  ytproAutohideObs=null;
+  if(ytproShotPosTimer){ clearTimeout(ytproShotPosTimer); ytproShotPosTimer=null; }
+  if(ytproShotReposBound){
+    ytproShotReposBound=false;
+    window.removeEventListener("orientationchange",ytproShotReposOrientation);
+    window.removeEventListener("resize",ytproShotReposResize);
+  }
 }
 
 function ytproRemoveSpeedPill(){
@@ -2440,64 +2470,145 @@ function ytproRemoveSpeedPill(){
   });
 }
 
-function ytproPillStyle(){
-  return "height:32px;min-width:32px;padding:0 12px;margin-left:6px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600;pointer-events:auto;cursor:pointer;";
+var ytproAutohideObs=null;
+function bindAutohideWatch(player){
+  if(ytproAutohideObs){ return; }
+  ytproAutohideObs=new MutationObserver(function(){
+    var shot=document.getElementById("ytproShotBtn");
+    if(shot){
+      var hidden=player.classList.contains("ytp-autohide");
+      shot.style.opacity=hidden?"0":"1";
+      shot.style.pointerEvents=hidden?"none":"auto";
+    }
+    if(player.classList.contains("ytp-autohide")){
+      var panel=document.getElementById("ytproSpeedPanel");
+      if(panel){ panel.remove(); }
+    }
+  });
+  ytproAutohideObs.observe(player,{attributes:true,attributeFilter:["class"]});
 }
 
-function buildSpeedPanel(){
-  var panel=document.createElement("div");
-  panel.id="ytproSpeedPanel";
-  panel.setAttribute("style","position:absolute;z-index:2147483646;width:104px;background:rgba(18,18,18,.96);color:#fff;border-radius:12px;padding:6px 0;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:auto;");
+var ytproShotPosTimer=null;
+var ytproShotReposBound=false;
+function ytproPositionShot(shot){
+  var player=ytproPlayerEl();
+  if(!player || !shot){ return; }
+  var prect=player.getBoundingClientRect();
+  if(!prect || prect.width<=0 || prect.height<=0){ return; }
+  var sw=shot.offsetWidth||42;
+  var sh=shot.offsetHeight||42;
+  /*Relative to the player's own box: clamp so the button always stays
+  inside the visible picture area, no matter the layout/orientation.*/
+  var margin=10;
+  var top=(prect.height-sh)/2;
+  top=Math.max(margin,Math.min(top,prect.height-sh-margin));
+  var left=margin;
+  left=Math.max(margin,Math.min(left,prect.width-sw-margin));
+  shot.style.top=top+"px";
+  shot.style.left=left+"px";
+}
+
+function ytproShotReposOrientation(){
+  setTimeout(function(){ var s=document.getElementById("ytproShotBtn"); if(s){ ytproPositionShot(s); } },80);
+}
+function ytproShotReposResize(){
+  if(ytproShotPosTimer){ clearTimeout(ytproShotPosTimer); }
+  ytproShotPosTimer=setTimeout(function(){
+    var s=document.getElementById("ytproShotBtn");
+    if(s){ ytproPositionShot(s); }
+  },80);
+}
+function bindShotReposition(){
+  if(ytproShotReposBound){ return; }
+  ytproShotReposBound=true;
+  window.addEventListener("orientationchange",ytproShotReposOrientation);
+  window.addEventListener("resize",ytproShotReposResize);
+}
+
+function injectShotButton(){
+  var player=ytproPlayerEl();
+  var pc=document.getElementById("player-container-id");
+  var host=player||pc;
+  if(!host){ return; }
+  bindShotReposition();
+  var shot=document.getElementById("ytproShotBtn");
+  if(shot && !shot.isConnected){ shot.remove(); shot=null; }
+  if(!shot){
+    shot=document.createElement("div");
+    shot.id="ytproShotBtn";
+    shot.title="Screenshot";
+    shot.setAttribute("style","position:absolute;left:0;top:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(0,0,0,.55);z-index:40;cursor:pointer;transition:opacity .2s;");
+    shot.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
+    shot.addEventListener("click",function(e){
+      e.stopPropagation();
+      ytproScreenshot();
+    });
+    shot.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
+    host.appendChild(shot);
+  }
+  if(player){
+    bindAutohideWatch(player);
+    var hidden=player.classList.contains("ytp-autohide");
+    shot.style.opacity=hidden?"0":"1";
+    shot.style.pointerEvents=hidden?"none":"auto";
+  }
+  ytproPositionShot(shot);
+}
+
+function buildSpeedStrip(){
+  var strip=document.createElement("div");
+  strip.id="ytproSpeedPanel";
+  strip.setAttribute("style","position:absolute;z-index:2147483646;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:calc(100% - 24px);background:rgba(18,18,18,.95);border-radius:12px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:auto;");
   YTPRO_SPEED_PRESETS.forEach(function(r){
     var it=document.createElement("div");
     it.setAttribute("data-rate",String(r));
     it.textContent=r+"x";
-    it.setAttribute("style","padding:9px 0;font-size:14px;text-align:center;cursor:pointer;");
+    it.setAttribute("style","padding:7px 10px;border-radius:16px;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,.12);cursor:pointer;");
     it.addEventListener("click",function(e){
       e.stopPropagation();
       YTProSpeed.set(r);
-      closePanel();
+      closeStrip();
     });
-    panel.appendChild(it);
+    strip.appendChild(it);
   });
   ["touchstart","click"].forEach(function(ev){
-    panel.addEventListener(ev,function(e){ e.stopPropagation(); },{capture:true,passive:ev=="touchstart"});
+    strip.addEventListener(ev,function(e){ e.stopPropagation(); },{capture:true,passive:ev=="touchstart"});
   });
-  var closePanel=function(){
-    if(panel.parentNode){ panel.remove(); }
+  var closeStrip=function(){
+    if(strip.parentNode){ strip.remove(); }
     document.removeEventListener("touchstart",onDocDown,true);
     document.removeEventListener("mousedown",onDocDown,true);
   };
   var onDocDown=function(e){
-    if(panel.contains(e.target)){ return; }
+    if(strip.contains(e.target)){ return; }
     var pill=document.getElementById("ytproSpeedPill");
     if(pill && pill.contains(e.target)){ return; }
-    closePanel();
+    closeStrip();
   };
   setTimeout(function(){
     document.addEventListener("touchstart",onDocDown,true);
     document.addEventListener("mousedown",onDocDown,true);
   },0);
-  return panel;
+  return strip;
 }
 
-function toggleSpeedPanel(pill){
+function toggleSpeedStrip(pill){
   var old=document.getElementById("ytproSpeedPanel");
   if(old){ old.remove(); return; }
 
-  var panel=buildSpeedPanel();
+  var strip=buildSpeedStrip();
   var host=document.getElementById("player-container-id")||document.body;
-  host.appendChild(panel);
+  host.appendChild(strip);
   YTProSpeed.updateLabel(YTProSpeed.current);
 
   var hr=host.getBoundingClientRect();
   var pr=pill.getBoundingClientRect();
-  var left=pr.left-hr.left+pr.width/2-panel.offsetWidth/2;
-  left=Math.max(8,Math.min(left,hr.width-panel.offsetWidth-8));
-  panel.style.left=left+"px";
-  var top=pr.top-hr.top-panel.offsetHeight-10;
-  if(top<8){ top=pr.bottom-hr.top+10; }
-  panel.style.top=top+"px";
+  var left=pr.left-hr.left+pr.width/2-strip.offsetWidth/2;
+  left=Math.max(12,Math.min(left,hr.width-strip.offsetWidth-12));
+  strip.style.left=left+"px";
+  var below=pr.bottom-hr.top+8;
+  if(below+strip.offsetHeight < hr.height-8){ strip.style.top=below+"px"; }
+  else{ strip.style.top=(pr.top-hr.top-strip.offsetHeight-8)+"px"; }
 }
 
 function injectSpeedControls(){
@@ -2508,49 +2619,54 @@ function injectSpeedControls(){
 
   if(video){ YTProSpeed.ensureVideoReset(video); }
 
-  var row=document.querySelector(".ytwVariableSpeedControllerViewModelButtonContainer");
-  if(!row){ return; } /*native controls hidden right now; the observer retries*/
+  injectShotButton();
+
+  if(localStorage.getItem("ytproSpeedBtn") == "false"){
+    ytproRemoveSpeedPill();
+    return;
+  }
+
+  var gear=document.querySelector(".ytp-settings-button");
+  var cc=document.querySelector(".ytp-subtitles-button");
+  var auto=document.querySelector(".ytp-autonav-toggle-button");
+  var anchor=auto||cc||gear;
+  if(!anchor || !anchor.isConnected){ return; } /*controls hidden right now; the observer retries*/
 
   var pill=document.getElementById("ytproSpeedPill");
-  if(pill && !pill.isConnected){ pill.remove(); pill=null; }
-  if(pill && localStorage.getItem("ytproSpeedBtn") == "false"){
-    pill.remove(); pill=null;
-    ytproRemoveSpeedPill();
-  }
-  if(!pill && localStorage.getItem("ytproSpeedBtn") != "false"){
+  if(pill && (!pill.isConnected || pill.parentElement!==anchor.parentElement)){ pill.remove(); pill=null; }
+  if(pill && pill.nextElementSibling!==anchor){ anchor.parentElement.insertBefore(pill,anchor); }
+  if(!pill){
     pill=document.createElement("div");
     pill.id="ytproSpeedPill";
-    pill.setAttribute("style",ytproPillStyle());
+    pill.setAttribute("style","display:flex;align-items:center;justify-content:center;min-width:36px;height:40px;padding:0 8px;color:#fff;font-size:13px;font-weight:500;pointer-events:auto;cursor:pointer;text-shadow:0 0 2px rgba(0,0,0,.5);");
     pill.textContent=YTProSpeed.current+"x";
     pill.addEventListener("click",function(e){
       e.stopPropagation();
-      toggleSpeedPanel(pill);
+      toggleSpeedStrip(pill);
     });
     pill.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
-    row.appendChild(pill);
+    anchor.parentElement.insertBefore(pill,anchor);
   }
-  if(pill && pill.parentElement!==row){ row.appendChild(pill); }
 
-  var shot=document.getElementById("ytproShotBtn");
-  if(shot && !shot.isConnected){ shot.remove(); shot=null; }
-  if(!shot){
-    shot=document.createElement("div");
-    shot.id="ytproShotBtn";
-    shot.title="Screenshot";
-    shot.setAttribute("style",ytproPillStyle()+"padding:0 10px;");
-    shot.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 24 24" width="18" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
-    shot.addEventListener("click",function(e){
-      e.stopPropagation();
-      ytproScreenshot();
-    });
-    shot.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
-    row.appendChild(shot);
+  /*Shift the whole button cluster left by one native slot so the gear takes
+  CC's old spot, CC takes autoplay's, autoplay moves one further left and the
+  pill occupies the vacated slot (agreed layout). Measured live, applied once
+  per container instance so re-injection never stacks offsets.*/
+  var container=anchor.parentElement;
+  var gr=gear?gear.getBoundingClientRect():null;
+  var cr=cc?cc.getBoundingClientRect():null;
+  var slot=(gr && cr && gr.left>cr.left)?Math.round(gr.left-cr.left):44;
+  if(container && !container.__ytproShiftApplied && slot>8){
+    container.__ytproShiftApplied=true;
+    container.style.marginRight=slot+"px";
   }
-  if(shot && shot.parentElement!==row){ row.appendChild(shot); }
 
-  /*controls row went away (auto-hide/rebuild): drop the open panel too*/
+  /*controls went away or auto-hid: drop the open strip too*/
   var panel=document.getElementById("ytproSpeedPanel");
-  if(panel && (!pill || !pill.isConnected)){ panel.remove(); }
+  if(panel){
+    var player=ytproPlayerEl();
+    if(!pill.isConnected || (player && player.classList.contains("ytp-autohide"))){ panel.remove(); }
+  }
 }
 
 /*One-tap HD screenshot: grab the current frame at the video's native
@@ -2619,8 +2735,8 @@ function cycleAspect(){
 
 function aspectLabel(){
   var m=aspectMode();
-  var t = m === "fill" ? "Fill" : (m === "crop" ? "Crop" : "Fit");
-  return `<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 5v14H5V5h14zm0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg><span style="margin-left:8px">Aspect: ${t}<span>`;
+  var t = m === "fill" ? "填充" : (m === "crop" ? "裁剪" : "适应");
+  return `<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22"><path fill="${c}" d="M19 5v14H5V5h14zm0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg><span style="margin-left:8px">画面比例：${t}<span>`;
 }
 
 function updateAspectButton(){

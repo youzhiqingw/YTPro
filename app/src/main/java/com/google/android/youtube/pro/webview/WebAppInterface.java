@@ -59,6 +59,31 @@ public class WebAppInterface {
 	public void downvid(String name, String url, String m) {
 		DownloadUtils.downloadFile(activity, name, url, m);
 	}
+
+	//Hand the download off to YTDLnis (com.deniscerri.ytdl) via ACTION_SEND;
+	//the built-in downloader stays unused from the UI. If YTDLnis is not
+	//installed, fall back to the system chooser so any downloader can be picked.
+	@JavascriptInterface
+	public void sendToDownloader(String url) {
+		activity.runOnUiThread(() -> {
+			try {
+				Intent send = new Intent(Intent.ACTION_SEND);
+				send.setType("text/plain");
+				send.putExtra(Intent.EXTRA_TEXT, url);
+				try {
+					send.setPackage("com.deniscerri.ytdl");
+					activity.startActivity(send);
+				} catch (Exception e) {
+					Intent open = new Intent(Intent.ACTION_SEND);
+					open.setType("text/plain");
+					open.putExtra(Intent.EXTRA_TEXT, url);
+					activity.startActivity(Intent.createChooser(open, "Download with"));
+				}
+			} catch (Exception e) {
+				Toast.makeText(activity.getApplicationContext(), "No downloader available", Toast.LENGTH_SHORT).show();
+			}
+		});
+	}
 	
 	@JavascriptInterface
 	public void fullScreen(boolean value) {
