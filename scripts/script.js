@@ -247,7 +247,65 @@ subtree: true
 
 
 /*Add Settings Tab*/
+var injectYtproSettingsEntry=(function(){
+  /* YTPro settings entry: a native-style row "YT PRO Settings" inserted right
+     below the "Premium" benefit row on the account / "You" page. The old fixed
+     top-left gear (setDiv) is permanently retired per user requirement
+     (2026-09-11): it floated over the video on every page and was confused
+     with YouTube's own settings. Never resurrect that gear.
+     Tapping this row reuses the existing #settings hash route -> ytproSettings(). */
+  var SEL='a, ytm-composite-link, ytm-settings-row, ytm-account-item, [role="link"], [role="listitem"], li';
+  function findPremiumRow(){
+    try{
+      var nodes=document.querySelectorAll(SEL);
+      for(var i=0;i<nodes.length;i++){
+        var el=nodes[i];
+        if(!el.isConnected){ continue; }
+        var t=(el.textContent||"").trim();
+        /* Premium 品牌名一般不本地化;只取像菜单项的短文本,避免命中长卡片 */
+        if(t.length>0 && t.length<60 && /premium/i.test(t)){ return el; }
+      }
+    }catch(e){}
+    return null;
+  }
+  return function(){
+    var existing=document.getElementById("ytproSettingsEntry");
+    if(existing && existing.isConnected){
+      /* already injected; re-inject only if detached (Premium row was rebuilt) */
+      if(existing.previousSibling && existing.previousSibling.isConnected){ return; }
+      try{ existing.remove(); }catch(e){}
+    }
+    var prem=findPremiumRow();
+    if(!prem || !prem.parentNode){ return; } /* not on the account page */
+    var item=prem.cloneNode(true);
+    item.setAttribute("id","ytproSettingsEntry");
+    /* rename deepest text node(s) matching "premium", keep icon/chevron structure */
+    try{
+      var tw=document.createTreeWalker(item,NodeFilter.SHOW_TEXT,null,false);
+      var n;
+      while((n=tw.nextNode())){
+        if(n.nodeValue && /premium/i.test(n.nodeValue)){ n.nodeValue="YT PRO Settings"; }
+      }
+    }catch(e){}
+    /* neutralise any href, reuse #settings route to open the YTPro panel */
+    try{ item.removeAttribute("href"); }catch(e){}
+    try{ item.setAttribute("href","javascript:void(0)"); }catch(e){}
+    item.addEventListener("click",function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.hash="settings";
+    },{capture:true});
+    item.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true,capture:true});
+    prem.parentNode.insertBefore(item, prem.nextSibling);
+  };
+})();
+
 var addSettingsTab=()=>{
+// 用户强约束(2026-09-11): 常驻浮层齿轮 setDiv 永久移除,不再创建。
+// YTPro 设置入口改为"我的"页 Premium 福利下方的原生风格列表项"YT PRO Settings",
+// 见 injectYtproSettingsEntry()。之后绝对不可恢复此浮层齿轮。
+injectYtproSettingsEntry();
+return; // 以下 setDiv 浮层齿轮创建逻辑已废弃,永不执行,保留仅为对照。
 // The injected YTPro top-bar settings gear is hidden on every page. The
 // native YouTube player settings gear lives inside the player controls and is
 // never touched here.
