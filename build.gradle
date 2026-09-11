@@ -2,11 +2,12 @@
 
 buildscript {
 	repositories {
-		// 国内镜像：优先从阿里云拉取，避免 dl.google.com 被墙导致 aapt2 等依赖下载失败（TLS 握手被中断）
-		maven { url 'https://maven.aliyun.com/repository/google' }
-		maven { url 'https://maven.aliyun.com/repository/public' }
+		// 官方仓库优先，阿里云镜像兜底：海外 CI 避免镜像 502 阻塞解析，
+		// 国内环境官方仓库超时时仍可命中镜像
 		google()
 		mavenCentral()
+		maven { url 'https://maven.aliyun.com/repository/google' }
+		maven { url 'https://maven.aliyun.com/repository/public' }
 	}
 	dependencies {
 		classpath 'com.android.tools.build:gradle:8.13.2'
@@ -17,10 +18,9 @@ buildscript {
 
 allprojects {
 	repositories {
-		// 国内镜像：优先从阿里云拉取，避免 Google 域名 TLS 握手被中断
-		maven { url 'https://maven.aliyun.com/repository/google' }
-		maven { url 'https://maven.aliyun.com/repository/public' }
 		google()
 		mavenCentral()
+		maven { url 'https://maven.aliyun.com/repository/google' }
+		maven { url 'https://maven.aliyun.com/repository/public' }
 	}
 }
