@@ -251,9 +251,6 @@ var addSettingsTab=()=>{
 // The injected YTPro top-bar settings gear is hidden on every page. The
 // native YouTube player settings gear lives inside the player controls and is
 // never touched here.
-var existing=document.getElementById("setDiv");
-if(existing){existing.remove();}
-return;
 if(document.getElementById("setDiv") == null){
 var setDiv=document.createElement("div");
 setDiv.setAttribute("style",`
@@ -2051,7 +2048,7 @@ var st=document.createElement("style");
 st.id=YTPRO_PIP_STYLE_ID;
 st.textContent=`
 html,body{margin:0 !important;padding:0 !important;overflow:hidden !important;background:#000 !important;}
-ytm-mobile-topbar-renderer,ytm-pivot-bar-renderer,#setDiv,#settingsprodiv{display:none !important;}
+ytm-mobile-topbar-renderer,ytm-pivot-bar-renderer{display:none !important;}
 #player-container-id{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:100% !important;height:100% !important;max-height:none !important;margin:0 !important;transform:none !important;z-index:2147483646 !important;}
 #player-container-id .html5-video-player,#player-container-id .html5-video-container,#player-container-id video{width:100% !important;height:100% !important;}
 `;
