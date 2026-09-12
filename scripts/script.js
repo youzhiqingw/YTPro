@@ -46,138 +46,6 @@ const HOLD_SPEED_MIN=0.25;
 const HOLD_DELAY=500;
 const HOLD_MOVE_TOL=12;
 
-//swipe controls
-var sens=0.005;
-var vol=Android.getVolume();
-var brt = Android.getBrightness()/100;
-
-/*Fullscreen brightness/volume swipe (v2; replaces the overlay sliders
-disabled 2026-09-09). Left 40% = brightness, right 40% = volume; the middle
-20% and the top/bottom chrome bands only block, never adjust. Once a
-vertical swipe is confirmed on the video surface it is preventDefault'ed
-AND stopPropagation'ed (incl. touchend) in the body capture phase, so
-YouTube's own touch handlers never see it — the fullscreen swipe-up
-"more videos" sheet can only be opened via the more-videos FAB
-(openMoreVideos replays a synthetic swipe with ytproSynGesture bypassing
-this shield). Two fingers yield to pinch zoom, horizontal dominance yields
-to native seeking, <10px movement stays a tap. Brightness/volume are
-refetched on touchstart so the gauge is never stale.*/
-(function(){
-if(document.body.__ytproSliderBound){ return; }
-document.body.__ytproSliderBound=true;
-window.ytproSynGesture=false;
-
-var st={x0:0,y0:0,b0:0,v0:0,side:0,on:false,fb:null,ht:0};
-var SWIPE_TOL=10;
-var Z_TOP=10;
-var Z_BOT=85;
-
-function tgt(e){
-var cn=""; var mp=null;
-try{
-cn=(e.target&&e.target.className&&e.target.className.toString)?e.target.className.toString():"";
-mp=(e.target&&e.target.closest)?e.target.closest("#movie_player"):null;
-}catch(err){ cn=""; mp=null; }
-if(!mp){ return false; }
-return cn.indexOf("video-stream")>-1||cn.indexOf("player-controls-background")>-1;
-}
-function isFs(){
-return !!(document.fullscreenElement||document.webkitFullscreenElement);
-}
-function startVals(){
-try{ st.b0=Math.max(0,Math.min(1,Android.getBrightness()/100)); }catch(err){ st.b0=0.5; }
-try{ st.v0=Math.max(0,Math.min(1,Android.getVolume())); }catch(err){ st.v0=0.5; }
-brt=st.b0; vol=st.v0;
-}
-function show(){
-if(st.ht){ clearTimeout(st.ht); st.ht=0; }
-/*onShowCustomView paints only the fullscreen subtree, so overlays must live
-inside document.fullscreenElement or they never render*/
-var fsEl=document.fullscreenElement||document.webkitFullscreenElement||document.body;
-if(!st.fb||!document.getElementById("ytproSwipeFb")||st.fb.parentNode!==fsEl){
-if(st.fb&&st.fb.parentNode){ st.fb.remove(); }
-st.fb=document.createElement("div");
-st.fb.id="ytproSwipeFb";
-st.fb.setAttribute("style","position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.72);color:#fff;padding:8px 16px;border-radius:20px;font-size:20px;font-weight:700;pointer-events:none;");
-st.fb.innerHTML="<span style='display:flex;align-items:center;'>"+(st.side<0?brtSvg:volSvg)+"</span><span id='ytproSwipeVal'></span><span style='display:inline-block;width:90px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);margin-left:6px;'><span id='ytproSwipeBar' style='display:block;height:100%;width:50%;border-radius:3px;background:#fff;'></span></span>";
-fsEl.appendChild(st.fb);
-}
-st.fb.style.display="flex";
-st.fb.style.opacity="1";
-}
-function refresh(){
-if(!st.fb){ return; }
-var val=Math.round((st.side<0?brt:vol)*100);
-var tv=document.getElementById("ytproSwipeVal");
-if(tv){ tv.textContent=val+"%"; }
-var bw=document.getElementById("ytproSwipeBar");
-if(bw){ bw.style.width=Math.max(0,Math.min(100,val))+"%"; }
-}
-function hide(){
-st.on=false; st.side=0;
-if(st.ht){ clearTimeout(st.ht); st.ht=0; }
-if(st.fb){
-st.fb.style.transition="opacity .3s ease-out";
-st.fb.style.opacity="0";
-st.ht=setTimeout(function(){ if(st.fb){ st.fb.remove(); st.fb=null; } },800);
-}
-}
-
-document.body.addEventListener("touchstart",function(e){
-if(window.ytproSynGesture){ return; }
-if(localStorage.getItem("gesC")!="true"){ return; }
-if(!isFs()){ return; }
-if(e.touches.length!==1){ st.on=false; st.side=0; return; }
-if(!tgt(e)){ return; }
-var t=e.touches[0];
-var px=(t.clientX/window.innerWidth)*100;
-st.x0=t.clientX; st.y0=t.clientY;
-st.side=(px<40)?-1:((px>=60)?1:0);
-st.on=false;
-startVals();
-},{capture:true,passive:true});
-document.body.addEventListener("touchmove",function(e){
-if(window.ytproSynGesture){ return; }
-if(localStorage.getItem("gesC")!="true"){ return; }
-if(!isFs()){ return; }
-if(e.touches.length!==1){ return; }
-if(!tgt(e)){ return; }
-var t=e.touches[0];
-var dx=t.clientX-st.x0;
-var dy=st.y0-t.clientY;
-if(!st.on){
-if(Math.max(Math.abs(dx),Math.abs(dy))<SWIPE_TOL){ return; }
-if(Math.abs(dx)>Math.abs(dy)){ st.side=0; return; }
-st.on=true;
-}
-var py=(t.clientY/window.innerHeight)*100;
-if(st.on){
-e.preventDefault();
-e.stopPropagation();
-if(py<Z_TOP||py>Z_BOT){ return; }
-}
-if(st.side<0){
-brt=Math.max(0,Math.min(1,st.b0+dy*sens));
-try{ Android.setBrightness(brt); }catch(err){}
-}else if(st.side>0){
-vol=Math.max(0,Math.min(1,st.v0+dy*sens));
-try{ Android.setVolume(vol); }catch(err){}
-}else{
-return;
-}
-show();
-refresh();
-},{capture:true,passive:false});
-document.body.addEventListener("touchend",function(e){
-if(window.ytproSynGesture){ return; }
-if(st.on){ e.stopPropagation(); hide(); }
-},{capture:true,passive:true});
-document.body.addEventListener("touchcancel",function(e){
-if(window.ytproSynGesture){ return; }
-if(st.on){ e.stopPropagation(); }
-hide();
-},{capture:true,passive:true});
-})();
 if(localStorage.getItem("gesC") == null || localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
 localStorage.setItem("autoSpn","true");
 localStorage.setItem("bgplay","true");
@@ -1653,8 +1521,6 @@ player.removeAttribute("ogTop");
 
 
 
-var volSvg=`<svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16" focusable="false" aria-hidden="true" style="pointer-events: none;filter:drop-shadow(0px 0px 1px black);position:absolute;top:10%"><path fill="#fff" d="M11.485 2.143 3.913 6.687A6 6 0 001 11.832v.338a6 6 0 002.913 5.144l7.572 4.543A1 1 0 0013 21V3a1.001 1.001 0 00-1.515-.857Zm6.88 2.079a1 1 0 00-.001 1.414 9 9 0 010 12.728 1 1 0 001.414 1.414 11 11 0 000-15.556 1 1 0 00-1.413 0Zm-2.83 2.828a1 1 0 000 1.415 5 5 0 010 7.07 1 1 0 001.415 1.415 6.999 6.999 0 000-9.9 1 1 0 00-1.415 0Z"></path></svg>`;
-var brtSvg=`<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="16" viewBox="0 0 24 24" width="16" style="filter:drop-shadow(0px 0px 1px black);position:absolute;top:10%;"><rect fill="none" height="24" width="24"/><path fill="#fff" d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0 c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2 c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1 C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06 c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41 l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41 c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36 c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg>`;
 
 
 /*THE 0NE AND 0NLY FUNCTION*/
@@ -3038,36 +2904,6 @@ function injectShotFAB(){
 }
 
 function openMoreVideos(){
-  /*The real swipe-up is intercepted by the fullscreen slider shield, so the
-  native "more videos" sheet is opened by replaying the swipe synthetically
-  on the video surface; ytproSynGesture keeps our own capture listeners from
-  eating the synthetic TouchEvents. Falls back to the old selector clicks
-  where TouchEvent synthesis is unavailable.*/
-  var v=document.querySelector("#movie_player video.video-stream")||document.querySelector("video.video-stream");
-  if(v&&window.TouchEvent&&window.Touch&&typeof Touch==="function"){
-    var r=v.getBoundingClientRect();
-    if(r.width>40&&r.height>40){
-      var cx=r.left+r.width/2;
-      var y0=r.top+r.height*0.72;
-      var y1=r.top+r.height*0.18;
-      var i=0;
-      var done=function(){ window.ytproSynGesture=false; };
-      var fire=function(type,y,cur){
-        var t=new Touch({identifier:1,target:v,clientX:cx,clientY:y});
-        v.dispatchEvent(new TouchEvent(type,{touches:cur?[t]:[],targetTouches:cur?[t]:[],changedTouches:[t],bubbles:true,cancelable:true}));
-      };
-      var step=function(){
-        try{
-          if(i<=6){ fire("touchmove",y0+(y1-y0)*(i/6),true); i++; setTimeout(step,40); }
-          else{ fire("touchend",y1,false); done(); }
-        }catch(err){ done(); }
-      };
-      window.ytproSynGesture=true;
-      try{ fire("touchstart",y0,true); }catch(err){ done(); return; }
-      setTimeout(step,60);
-      return;
-    }
-  }
   var sel=[
     ".ytp-playlist-menu-button",
     '[aria-label*="list" i]',
