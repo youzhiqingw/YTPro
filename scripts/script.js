@@ -557,7 +557,7 @@ e.style[x]=s[x];
 
 /*Get Codecs*/
 function getYTPROCodecs(){
-var t=`<p style="text-align:center;font-size:14px;">This feature is experimental , this may break YTPro if not configured correctly. By default all the codecs are enabled , tap on the buttons below to switch them.</p><br> <vc  style="font-size:14px;">Video Codecs</vc><br>`;
+var t=`<p style="text-align:center;font-size:14px;">此功能为实验性，配置不当可能导致 YTPro 异常。默认启用全部编解码器，点击下方按钮即可切换。</p><br> <vc  style="font-size:14px;">视频编解码器</vc><br>`;
 
 for(var y in YTPROCodecs.video){
 
@@ -570,7 +570,7 @@ t+=`<button data-action="setRemoveCodec" data-value="${x}" ${("true" == localSto
 </button>`;
 }
 
-t+=`<br><br><vc  style="font-size:14px">Audio Codecs</vc><br>`
+t+=`<br><br><vc  style="font-size:14px">音频编解码器</vc><br>`
 for(var y in YTPROCodecs.audio){
 
 var x=YTPROCodecs.audio[y];
@@ -583,9 +583,9 @@ t+=`<button data-action="setRemoveCodec" data-value="${x}" ${("true" == localSto
 }
 
 t+=`<br><br>
-<div>Block 60FPS <span data-action="block_60fps" style="${sttCnf(0,0,"block_60fps")}" ><b style="${sttCnf(0,1,"block_60fps")}" ></b></span></div> `;
+<div>屏蔽 60FPS <span data-action="block_60fps" style="${sttCnf(0,0,"block_60fps")}" ><b style="${sttCnf(0,1,"block_60fps")}" ></b></span></div> `;
 
-t+=`<br><br><button data-action="done" style="margin-top:10px;width:25%;float:right;text-align:center;background:${c};color:${dc};" >Done</button>`;
+t+=`<br><br><button data-action="done" style="margin-top:10px;width:25%;float:right;text-align:center;background:${c};color:${dc};" >完成</button>`;
 
 
 return t;
@@ -947,7 +947,7 @@ function checkUpdates(){
 if(parseFloat(Android.getInfo()) < parseFloat(YTProVer) ){
 updateModel();
 }else{
-Android.showToast("Your app is up to date");
+Android.showToast("已是最新版本");
 }
 
 fetch('https://youtube.com/ytpro_cdn/npm/ytpro', {cache: 'reload'});
@@ -1894,13 +1894,13 @@ history.back();
 
 
 if(localStorage.getItem("hearts") == null){
-ytproHh.innerHTML+="No Videos Found";
+ytproHh.innerHTML+="暂无收藏视频";
 }else{
 
 var v=JSON.parse(localStorage.getItem("hearts"));
 
 if(Object.keys(v).length === 0){
-return ytproHh.innerHTML+="No Videos Found";
+return ytproHh.innerHTML+="暂无收藏视频";
 }
 
 for(var n=Object.keys(v).length - 1; n >  -1 ; n--){
@@ -2854,21 +2854,21 @@ x.setAttribute("style",`height:100%;width:100%;position:fixed;display:grid;align
 
 x.innerHTML=`
 <div style="height:auto;width:70%;padding:20px;background:rgba(0,0,0,.6);border:1px solid #888;box-shadow:0px 0px 5px black;color:white;backdrop-filter:blur(10px);border-radius:15px;margin:auto">
-<h2> Mandatory Update </h2><br>
-Latest Version ${YTProVer} of YTPRO is available , update the YTPRO to get latest features.
-<br>- This update is mandatory as it fixes a ton of bugs and improves functionality <br>
-- Fixed Downloads, switched to SABR downloader<br>
-- Added muxing to the youtube videos<br>
-- Fixed gestures for brightness and volume control<br>
-- Optimized the UI of both Download and Settings menu<br>
-- Added speed increase upto 10x<br>
-- Fixed bugs and improved functionality<br>
-- for the full list <u data-action="url" >click here</u>
+<h2> 强制更新 </h2><br>
+YTPro 新版本 ${YTProVer} 已发布，更新以获取最新功能。
+<br>- 本次为强制更新，修复了大量问题并改进功能 <br>
+- 修复下载功能，切换为 SABR 下载器<br>
+- 新增视频音轨合并（muxing）<br>
+- 修复亮度与音量手势控制<br>
+- 优化下载与设置菜单界面<br>
+- 新增最高 10 倍速播放<br>
+- 修复若干问题并改进功能<br>
+- 完整列表 <u data-action="url" >点这里</u>
 <br>
 <br>
 <div style="display:flex;">
 <!--<button style="border:0;border-radius:10px;height:30px;width:150px;background:;" data-action="cancel">Cancel</button>-->
-<button style="border:0;border-radius:10px;height:30px;width:150px;background:rgba(255,50,50,.7);float:right;" data-action="download" >Download</button>
+<button style="border:0;border-radius:10px;height:30px;width:150px;background:rgba(255,50,50,.7);float:right;" data-action="download" >立即更新</button>
 </div>
 
 </div>
