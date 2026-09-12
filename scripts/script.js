@@ -2861,7 +2861,7 @@ function hidePipInjected(){
     }
     return;
   }
-  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn","ytproFullFabs","ytproSwipeFb"].forEach(function(id){
+  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn","ytproFullFabs"].forEach(function(id){
     var el=document.getElementById(id);
     if(el){ el.remove(); }
   });
