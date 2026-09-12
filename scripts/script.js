@@ -69,8 +69,12 @@ var Z_TOP=10;
 var Z_BOT=85;
 
 function tgt(e){
-var cn="";
-try{ cn=(e.target&&e.target.className&&e.target.className.toString)?e.target.className.toString():""; }catch(err){ cn=""; }
+var cn=""; var mp=null;
+try{
+cn=(e.target&&e.target.className&&e.target.className.toString)?e.target.className.toString():"";
+mp=(e.target&&e.target.closest)?e.target.closest("#movie_player"):null;
+}catch(err){ cn=""; mp=null; }
+if(!mp){ return false; }
 return cn.indexOf("video-stream")>-1||cn.indexOf("player-controls-background")>-1;
 }
 function isFs(){
@@ -85,10 +89,11 @@ function show(){
 if(!st.fb||!document.getElementById("ytproSwipeFb")){
 st.fb=document.createElement("div");
 st.fb.id="ytproSwipeFb";
-st.fb.setAttribute("style","position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.72);color:#fff;padding:7px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;");
-st.fb.innerHTML="<span style='display:flex;align-items:center;'>"+(st.side<0?brtSvg:volSvg)+"</span><span id='ytproSwipeVal'></span><span style='display:inline-block;width:70px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);margin-left:4px;'><span id='ytproSwipeBar' style='display:block;height:100%;width:50%;border-radius:3px;background:#fff;'></span></span>";
+st.fb.setAttribute("style","position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.72);color:#fff;padding:8px 16px;border-radius:20px;font-size:20px;font-weight:700;pointer-events:none;");
+st.fb.innerHTML="<span style='display:flex;align-items:center;'>"+(st.side<0?brtSvg:volSvg)+"</span><span id='ytproSwipeVal'></span><span style='display:inline-block;width:90px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);margin-left:6px;'><span id='ytproSwipeBar' style='display:block;height:100%;width:50%;border-radius:3px;background:#fff;'></span></span>";
 document.body.appendChild(st.fb);
 }
+st.fb.style.display="flex";
 st.fb.style.opacity="1";
 }
 function refresh(){
@@ -103,9 +108,9 @@ function hide(){
 st.on=false; st.side=0;
 if(st.ht){ clearTimeout(st.ht); st.ht=0; }
 if(st.fb){
-st.fb.style.transition="opacity .25s ease-out";
+st.fb.style.transition="opacity .3s ease-out";
 st.fb.style.opacity="0";
-st.ht=setTimeout(function(){ if(st.fb){ st.fb.remove(); st.fb=null; } },260);
+st.ht=setTimeout(function(){ if(st.fb){ st.fb.remove(); st.fb=null; } },800);
 }
 }
 
@@ -136,8 +141,10 @@ if(Math.abs(dx)>Math.abs(dy)){ st.side=0; return; }
 st.on=true;
 }
 var py=(t.clientY/window.innerHeight)*100;
-if(py<Z_TOP||py>Z_BOT){ return; }
+if(st.on){
 e.preventDefault();
+if(py<Z_TOP||py>Z_BOT){ return; }
+}
 if(st.side<0){
 brt=Math.max(0,Math.min(1,st.b0+dy*sens));
 try{ Android.setBrightness(brt); }catch(err){}
@@ -182,10 +189,43 @@ document.getElementsByName("viewport")[0].setAttribute("content","");
 }
 
 // Freeze Homepage: when ON, returning to home does not re-fetch/re-rank the
-// feed. The first home browse response is cached in memory only (not persisted)
-// and replayed on return; manual scroll-down continuations still load normally.
-// Session-only cache means a fresh app open always shows a new home feed.
+// feed because the first home browse response is cached in memory only (not
+// persisted) and replayed on return. A manual swipe on the home page drops the
+// snapshot so the feed turns live again; a fresh app open therefore always
+// shows a brand-new home feed. Scroll-down continuations are never frozen.
 var freezeHomeCache=null;
+/*Session-only, in-memory snapshot shared by the fetch and XHR paths so either
+transport freezes identically. Nothing is written to localStorage: dropping
+the snapshot (manual swipe on home, or toggling the switch off) or reloading
+the app always yields a fresh home feed.*/
+function ytproIsHomeBrowse(url,bodyText){
+  if(!url||!bodyText){ return false; }
+  if(url.indexOf("youtubei/v1/browse")<0){ return false; }
+  return bodyText.indexOf('"FEwhat_to_watch"')>-1 && bodyText.indexOf("continuation")<0;
+}
+function ytproLoadHomeSnapshot(){
+  return freezeHomeCache;
+}
+function ytproSaveHomeSnapshot(t){
+  freezeHomeCache=t;
+}
+function ytproClearHomeSnapshot(){
+  freezeHomeCache=null;
+}
+/*A manual swipe on the home page means "give me fresh content": any touchmove
+on the home path (anything that is not a watch/shorts/search/playlist/... page)
+drops the snapshot. Guarded to clear exactly once and never leave the home
+context.*/
+function ytproIsHomePath(){
+  var p=window.location.pathname||"";
+  if(!p||p=="/"){ return true; }
+  return ["/watch","/shorts","/results","/playlist","/channel","/account","/settings","/feed"].every(function(k){ return p.indexOf(k)<0; });
+}
+document.body.addEventListener("touchmove",function(){
+  if(localStorage.getItem("freezeHome")=="true" && freezeHomeCache!=null && ytproIsHomePath()){
+    freezeHomeCache=null;
+  }
+},{capture:true,passive:true});
 if(!window.__ytproFreezeHome){
 window.__ytproFreezeHome=true;
 var _ytproFetch=window.fetch.bind(window);
@@ -193,20 +233,17 @@ window.fetch=function(input,init){
   if(localStorage.getItem("freezeHome")=="true"){
     try{
       var u=(typeof input==="string")?input:(input&&input.url?input.url:"");
-      if(u&&u.indexOf("youtubei/v1/browse")>-1&&init&&init.body){
-        var b=(typeof init.body==="string")?init.body:(init.body?init.body.toString():"");
-        var isHome=/"browseId"\s*:\s*"FEwhat_to_watch"/.test(b);
-        var isCont=/"continuation"/.test(b);
-        if(isHome&&!isCont){
-          if(freezeHomeCache!=null){
-            return Promise.resolve(new Response(freezeHomeCache,{status:200,statusText:"OK",headers:{"Content-Type":"application/json"}}));
-          }
-          return _ytproFetch(input,init).then(function(r){
-            var c=r.clone();
-            c.text().then(function(t){freezeHomeCache=t;}).catch(function(){});
-            return r;
-          });
+      var b=(init&&init.body)?((typeof init.body==="string")?init.body:init.body.toString()):"";
+      if(ytproIsHomeBrowse(u,b)){
+        var snap=ytproLoadHomeSnapshot();
+        if(snap!=null){
+          return Promise.resolve(new Response(snap,{status:200,statusText:"OK",headers:{"Content-Type":"application/json"}}));
         }
+        return _ytproFetch(input,init).then(function(r){
+          var c=r.clone();
+          c.text().then(function(t){ ytproSaveHomeSnapshot(t); }).catch(function(){});
+          return r;
+        });
       }
     }catch(e){}
   }
@@ -1100,6 +1137,10 @@ x.style.background=s[2];
 x.children[0].style.left="auto";
 x.children[0].style.right="2px";
 x.children[0].style.background=s[0];
+}
+
+if(z == "freezeHome"){
+  if(localStorage.getItem("freezeHome") == "false"){ ytproClearHomeSnapshot(); }
 }
 
 if(z == "ytproSpeedBtn"){
@@ -2359,6 +2400,38 @@ this._interceptedUrl.includes("youtube.com/api/stats/ads")
 return;
 }
 
+// Freeze Homepage (XHR path): mirror the fetch snapshot behavior. When a frozen
+// snapshot exists the request is short-circuited into a simulated 200 response;
+// otherwise the real browse response is recorded for the next time.
+if(localStorage.getItem("freezeHome")=="true" && this._interceptedUrl.indexOf("youtubei/v1/browse")>-1){
+try{
+var b=typeof body==="string"?body:(body?body.toString():"");
+if(ytproIsHomeBrowse(this._interceptedUrl,b)){
+var snap=ytproLoadHomeSnapshot();
+if(snap!=null){
+var x=this;
+Object.defineProperty(x,"readyState",{configurable:true,get:function(){return 4;}});
+Object.defineProperty(x,"status",{configurable:true,get:function(){return 200;}});
+Object.defineProperty(x,"statusText",{configurable:true,get:function(){return "OK";}});
+Object.defineProperty(x,"responseText",{configurable:true,get:function(){return snap;}});
+Object.defineProperty(x,"response",{configurable:true,get:function(){return snap;}});
+if(x.onreadystatechange){ try{ x.onreadystatechange.call(x); }catch(e){} }
+if(x.onload){ try{ x.onload.call(x); }catch(e){} }
+if(x.onloadend){ try{ x.onloadend.call(x); }catch(e){} }
+try{ x.dispatchEvent(new Event("readystatechange")); }catch(e){}
+try{ x.dispatchEvent(new Event("load")); }catch(e){}
+try{ x.dispatchEvent(new Event("loadend")); }catch(e){}
+return;
+}
+this.addEventListener("load",function(){
+try{
+if(this.status===200&&this.responseText){ ytproSaveHomeSnapshot(this.responseText); }
+}catch(e){}
+});
+}
+}catch(e){}
+}
+
 return origSend.apply(this, arguments);
 };
 
@@ -2537,6 +2610,7 @@ var ytproAutohideObs=null;
 function bindAutohideWatch(player){
   if(ytproAutohideObs){ return; }
   ytproAutohideObs=new MutationObserver(function(){
+    ytproFabsSync();
     if(player.classList.contains("ytp-autohide")){
       var panel=document.getElementById("ytproSpeedPanel");
       if(panel){ panel.remove(); }
@@ -2639,6 +2713,7 @@ function toggleSpeedStrip(pill){
 }
 
 function injectSpeedControls(){
+  if(typeof window.isPIP!=="undefined" && window.isPIP){ ytproRemoveSpeedControls(); return; }
   var video=document.querySelector(".video-stream");
   if(video){ bindSpeedWatch(video); }
 
@@ -2836,6 +2911,10 @@ extraSpeed();
 
 //ytpro speed pill + screenshot pill inside the native controls bar
 injectSpeedControls();
+
+//PiP: 清理注入元素 + 隐藏原生齿轮; 全屏右下角快捷按钮组同步
+hidePipInjected();
+ytproFabsSync();
   
 //ads Block
 adsBlock();
@@ -2870,6 +2949,104 @@ observer.observe(targetNode, config);
 
 
 
+/* ---- Fullscreen quick actions + PiP cleanup ---- */
+/*Fullscreen right-bottom FAB cluster (screenshot + more videos), shown only
+while the document is fullscreen, fading together with the native ytp-autohide
+chrome. In PiP mode (window.isPIP) every YTPro injectable is removed and
+YouTube's own settings gear is hidden, so no residual gear/pill/FAB lingers
+in the tiny PiP window.*/
+
+var ytproPipGearHidden=false;
+
+function hidePipInjected(){
+  if(typeof window.isPIP==="undefined" || !window.isPIP){
+    if(ytproPipGearHidden){
+      var gear=document.querySelector(".ytp-settings-button");
+      if(gear){ gear.style.display=""; }
+      ytproPipGearHidden=false;
+    }
+    return;
+  }
+  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn","ytproFullFabs","ytproSwipeFb"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){ el.remove(); }
+  });
+  var gear=document.querySelector(".ytp-settings-button");
+  if(gear){ gear.style.display="none"; ytproPipGearHidden=true; }
+}
+
+var YTPRO_MORE_SVG=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22" fill="#fff"><path d="M4 6h2v2H4V6zm0 5h2v2H4v-2zm0 5h2v2H4v-2zm16-8v2H8V8h12zm0 5v2H8v-2h12zm0 5v2H8v-2h12z"/></svg>`;
+var YTPRO_SHOT_SVG=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
+
+function ytproFabsHost(){
+  var h=document.getElementById("ytproFullFabs");
+  if(!h){
+    h=document.createElement("div");
+    h.id="ytproFullFabs";
+    h.setAttribute("style","position:fixed;right:12px;bottom:96px;z-index:2147483646;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;visibility:hidden;");
+    document.body.appendChild(h);
+  }
+  return h;
+}
+
+function ytproFab(svg,title,cb){
+  var d=document.createElement("div");
+  d.setAttribute("style","width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer;");
+  d.title=title;
+  d.innerHTML=svg;
+  d.addEventListener("click",function(e){ e.stopPropagation(); cb(); });
+  d.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
+  return d;
+}
+
+function injectShotFAB(){
+  var host=ytproFabsHost();
+  if(document.getElementById("ytproShotFAB")){ return; }
+  var s=ytproFab(YTPRO_SHOT_SVG,"截图（保存到相册）",function(){ ytproScreenshot(); });
+  s.id="ytproShotFAB";
+  host.appendChild(s);
+}
+
+function openMoreVideos(){
+  var sel=[
+    ".ytp-playlist-menu-button",
+    '[aria-label*="list" i]',
+    '[aria-label*="more" i]',
+    '[aria-label*="related" i]',
+    '[aria-label*="next" i]'
+  ];
+  for(var i=0;i<sel.length;i++){
+    var n;
+    try{ n=document.querySelector(sel[i]); }catch(err){ n=null; }
+    if(n && n.isConnected){ n.click(); return; }
+  }
+  try{ Android.showToast("未找到原生「更多视频」入口，请运行探针后反馈"); }catch(err){}
+}
+
+function injectMoreVidButton(){
+  var host=ytproFabsHost();
+  if(document.getElementById("ytproMoreVidFAB")){ return; }
+  var m=ytproFab(YTPRO_MORE_SVG,"更多视频",openMoreVideos);
+  m.id="ytproMoreVidFAB";
+  host.insertBefore(m,host.firstChild);
+}
+
+function ytproFabsSync(){
+  var host=document.getElementById("ytproFullFabs");
+  if(typeof window.isPIP!=="undefined" && window.isPIP){ if(host){ host.remove(); } return; }
+  var fs=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  if(!fs){ if(host && host.parentNode){ host.remove(); } return; }
+  injectShotFAB();
+  injectMoreVidButton();
+  var player=ytproPlayerEl();
+  var hide=!!(player && player.classList && player.classList.contains("ytp-autohide"));
+  host.style.visibility=hide?"hidden":"visible";
+  host.style.opacity=hide?"0":"1";
+}
+
+document.addEventListener("fullscreenchange",ytproFabsSync);
+document.addEventListener("webkitfullscreenchange",ytproFabsSync);
+window.addEventListener("resize",ytproFabsSync);
 
 /*Update your app bruh*/
 function updateModel(){
