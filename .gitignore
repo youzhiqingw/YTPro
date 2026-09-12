@@ -17,6 +17,9 @@ local.properties
 .tmp/
 *.shot-*.png
 
+# Mimosa security scan local history
+.mimosa/
+
 # IDE
 .idea/
 *.iml
@@ -39,3 +42,4 @@ docs/安卓模拟器测试教程.md
 docs/落地功能实施方案.md
 docs/上游issues整理.md
 docs/PLAN.md
+.zcode/plans/plan-sess_f90970a2-6a1b-4b7b-aed1-a6590a886273.md
