@@ -151,11 +151,22 @@ public class WebAppInterface {
 		return true;
 	}
 	
+	// 页面侧传来的文件名源于可构造的视频标题，可能携带路径分隔符或 ../，
+	// 统一在桥接边界消毒，杜绝 Downloads/Pictures/YTPRO 写入时的目录穿越。
+	private static String safeFileName(String name) {
+		if (name == null || name.trim().isEmpty()) return "ytpro.bin";
+		String cleaned = name.replaceAll("[/\\\\]", "_");
+		int i = 0;
+		while (i < cleaned.length() && cleaned.charAt(i) == '.') i++;
+		cleaned = cleaned.substring(i).trim();
+		return cleaned.isEmpty() ? "ytpro.bin" : cleaned;
+	}
+
 	@JavascriptInterface
 	public void requestBinaryPort(String fileName) {
 		activity.runOnUiThread(() -> {
 			if (activity.streamManager != null) {
-				activity.streamManager.openStreamForFile(fileName);
+				activity.streamManager.openStreamForFile(safeFileName(fileName));
 			}
 		});
 	}
@@ -163,10 +174,10 @@ public class WebAppInterface {
 	@JavascriptInterface
 	public void muxVideoAudio(String videoFileName,String audioFileName,String outputFileName) {
 		java.io.File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS.concat("/YTPRO"));
-		java.io.File video  = new java.io.File(downloads, videoFileName);
-		java.io.File audio  = new java.io.File(downloads, audioFileName);
-		
-		java.io.File output = new java.io.File(downloads, outputFileName);
+		java.io.File video  = new java.io.File(downloads, safeFileName(videoFileName));
+		java.io.File audio  = new java.io.File(downloads, safeFileName(audioFileName));
+
+		java.io.File output = new java.io.File(downloads, safeFileName(outputFileName));
 		
 		MediaMuxerUtils.muxVideoAudio(activity.getApplicationContext(), video, audio, output, new MediaMuxerUtils.MuxCallback() {
 			@Override
@@ -374,6 +385,7 @@ public class WebAppInterface {
 	// Older devices write straight into the public Pictures dir and hand it
 	// to MediaScanner so it shows up in gallery apps.
 	private String storeImage(String name, byte[] data) throws Exception {
+		name = safeFileName(name);
 		if (Build.VERSION.SDK_INT >= 29) {
 			android.content.ContentValues values = new android.content.ContentValues();
 			values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name);
