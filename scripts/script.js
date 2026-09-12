@@ -52,16 +52,20 @@ var vol=Android.getVolume();
 var brt = Android.getBrightness()/100;
 
 /*Fullscreen brightness/volume swipe (v2; replaces the overlay sliders
-disabled 2026-09-09). Left 40% = brightness, right 40% = volume; middle
-20% and top/bottom chrome stay untouched. Detection lives in body capture
-listeners, no overlay element is created, so native controls (gear, seek,
-pause, speed, screenshot) are never blocked. Two fingers yield to pinch
-zoom, horizontal dominance yields to native seeking, <10px movement stays
-a tap. Brightness/volume are refetched on touchstart so the gauge is never
-stale.*/
+disabled 2026-09-09). Left 40% = brightness, right 40% = volume; the middle
+20% and the top/bottom chrome bands only block, never adjust. Once a
+vertical swipe is confirmed on the video surface it is preventDefault'ed
+AND stopPropagation'ed (incl. touchend) in the body capture phase, so
+YouTube's own touch handlers never see it — the fullscreen swipe-up
+"more videos" sheet can only be opened via the more-videos FAB
+(openMoreVideos replays a synthetic swipe with ytproSynGesture bypassing
+this shield). Two fingers yield to pinch zoom, horizontal dominance yields
+to native seeking, <10px movement stays a tap. Brightness/volume are
+refetched on touchstart so the gauge is never stale.*/
 (function(){
 if(document.body.__ytproSliderBound){ return; }
 document.body.__ytproSliderBound=true;
+window.ytproSynGesture=false;
 
 var st={x0:0,y0:0,b0:0,v0:0,side:0,on:false,fb:null,ht:0};
 var SWIPE_TOL=10;
@@ -86,12 +90,17 @@ try{ st.v0=Math.max(0,Math.min(1,Android.getVolume())); }catch(err){ st.v0=0.5; 
 brt=st.b0; vol=st.v0;
 }
 function show(){
-if(!st.fb||!document.getElementById("ytproSwipeFb")){
+if(st.ht){ clearTimeout(st.ht); st.ht=0; }
+/*onShowCustomView paints only the fullscreen subtree, so overlays must live
+inside document.fullscreenElement or they never render*/
+var fsEl=document.fullscreenElement||document.webkitFullscreenElement||document.body;
+if(!st.fb||!document.getElementById("ytproSwipeFb")||st.fb.parentNode!==fsEl){
+if(st.fb&&st.fb.parentNode){ st.fb.remove(); }
 st.fb=document.createElement("div");
 st.fb.id="ytproSwipeFb";
 st.fb.setAttribute("style","position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.72);color:#fff;padding:8px 16px;border-radius:20px;font-size:20px;font-weight:700;pointer-events:none;");
 st.fb.innerHTML="<span style='display:flex;align-items:center;'>"+(st.side<0?brtSvg:volSvg)+"</span><span id='ytproSwipeVal'></span><span style='display:inline-block;width:90px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);margin-left:6px;'><span id='ytproSwipeBar' style='display:block;height:100%;width:50%;border-radius:3px;background:#fff;'></span></span>";
-document.body.appendChild(st.fb);
+fsEl.appendChild(st.fb);
 }
 st.fb.style.display="flex";
 st.fb.style.opacity="1";
@@ -115,6 +124,7 @@ st.ht=setTimeout(function(){ if(st.fb){ st.fb.remove(); st.fb=null; } },800);
 }
 
 document.body.addEventListener("touchstart",function(e){
+if(window.ytproSynGesture){ return; }
 if(localStorage.getItem("gesC")!="true"){ return; }
 if(!isFs()){ return; }
 if(e.touches.length!==1){ st.on=false; st.side=0; return; }
@@ -127,9 +137,9 @@ st.on=false;
 startVals();
 },{capture:true,passive:true});
 document.body.addEventListener("touchmove",function(e){
+if(window.ytproSynGesture){ return; }
 if(localStorage.getItem("gesC")!="true"){ return; }
 if(!isFs()){ return; }
-if(!st.side){ return; }
 if(e.touches.length!==1){ return; }
 if(!tgt(e)){ return; }
 var t=e.touches[0];
@@ -143,22 +153,28 @@ st.on=true;
 var py=(t.clientY/window.innerHeight)*100;
 if(st.on){
 e.preventDefault();
+e.stopPropagation();
 if(py<Z_TOP||py>Z_BOT){ return; }
 }
 if(st.side<0){
 brt=Math.max(0,Math.min(1,st.b0+dy*sens));
 try{ Android.setBrightness(brt); }catch(err){}
-}else{
+}else if(st.side>0){
 vol=Math.max(0,Math.min(1,st.v0+dy*sens));
 try{ Android.setVolume(vol); }catch(err){}
+}else{
+return;
 }
 show();
 refresh();
 },{capture:true,passive:false});
 document.body.addEventListener("touchend",function(e){
-if(st.on){ hide(); }
+if(window.ytproSynGesture){ return; }
+if(st.on){ e.stopPropagation(); hide(); }
 },{capture:true,passive:true});
 document.body.addEventListener("touchcancel",function(e){
+if(window.ytproSynGesture){ return; }
+if(st.on){ e.stopPropagation(); }
 hide();
 },{capture:true,passive:true});
 })();
@@ -1453,11 +1469,13 @@ function releaseHold(){
 
 function showHoldIndicator(){
   var el=document.getElementById("ytproHoldIndicator");
+  var fsEl=document.fullscreenElement||document.webkitFullscreenElement||document.body;
+  if(el && el.parentNode!==fsEl){ el.remove(); el=null; }
   if(!el){
     el=document.createElement("div");
     el.id="ytproHoldIndicator";
     el.setAttribute("style",`position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.7);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;`);
-    document.body.appendChild(el);
+    fsEl.appendChild(el);
   }
   el.textContent = holdSpeedValue() + "x";
   el.style.display = "block";
@@ -2128,6 +2146,11 @@ html,body{margin:0 !important;padding:0 !important;overflow:hidden !important;ba
 ytm-mobile-topbar-renderer,ytm-pivot-bar-renderer{display:none !important;}
 #player-container-id{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;width:100% !important;height:100% !important;max-height:none !important;margin:0 !important;transform:none !important;z-index:2147483646 !important;}
 #player-container-id .html5-video-player,#player-container-id .html5-video-container,#player-container-id video{width:100% !important;height:100% !important;}
+/*hide every player chrome layer: CSS survives YouTube rebuilding the
+control-bar nodes, unlike per-element inline display:none*/
+#player-container-id .ytp-chrome-bottom,#player-container-id .ytp-chrome-top,#player-container-id .ytp-chrome-controls,#player-container-id .player-controls{display:none !important;}
+#player-container-id .ytp-settings-button,#player-container-id .ytp-multicam-button,#player-container-id .ytp-remote-button,#player-container-id .ytp-miniplayer-button,#player-container-id .ytp-fullscreen-button,#player-container-id .ytp-subtitles-button,#player-container-id .ytp-autonav-toggle-button,#player-container-id .ytp-playlist-menu-button{display:none !important;}
+.ytp-settings-button,.ytp-multicam-button{display:none !important;}
 `;
 (document.head||document.documentElement).appendChild(st);
 }
@@ -2184,6 +2207,7 @@ v.play();
 pauseAllowed = false;
 isPIP=true;
 try{ applyPipLayout(); }catch(err){}
+try{ hidePipInjected(); }catch(err){}
 try{ window.dispatchEvent(new Event('resize')); }catch(err){}
 if(v){ try{ v.style.setProperty('object-fit','contain','important'); }catch(err){} }
 
@@ -2844,10 +2868,12 @@ function ytproScreenshot(){
 }
 
 function ytproFlash(){
-  var host=document.getElementById("player-container-id");
+  /*fullscreen paints only the fullscreenElement subtree (#movie_player), so
+  the flash must live inside it or it is invisible during fullscreen shots*/
+  var host=document.fullscreenElement||document.webkitFullscreenElement||document.getElementById("player-container-id");
   if(!host){ return; }
   var f=document.createElement("div");
-  f.setAttribute("style","position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;opacity:.85;z-index:2147483646;pointer-events:none;transition:opacity .18s ease-out;");
+  f.setAttribute("style","position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;opacity:.85;z-index:2147483646;pointer-events:none;transition:opacity .18s ease-out;");
   host.appendChild(f);
   requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.style.opacity="0"; }); });
   setTimeout(function(){ f.remove(); },260);
@@ -2952,9 +2978,11 @@ observer.observe(targetNode, config);
 /* ---- Fullscreen quick actions + PiP cleanup ---- */
 /*Fullscreen right-bottom FAB cluster (screenshot + more videos), shown only
 while the document is fullscreen, fading together with the native ytp-autohide
-chrome. In PiP mode (window.isPIP) every YTPro injectable is removed and
-YouTube's own settings gear is hidden, so no residual gear/pill/FAB lingers
-in the tiny PiP window.*/
+chrome. Mounted inside the live fullscreen element because onShowCustomView
+paints only the fullscreen subtree — body-mounted overlays never render. In
+PiP mode (window.isPIP) every YTPro injectable is removed and YouTube's own
+player chrome is hidden via the ytpro-pip-style CSS, so no residual
+gear/pill/FAB lingers in the tiny PiP window.*/
 
 var ytproPipGearHidden=false;
 
@@ -2980,11 +3008,13 @@ var YTPRO_SHOT_SVG=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox=
 
 function ytproFabsHost(){
   var h=document.getElementById("ytproFullFabs");
+  var fsEl=document.fullscreenElement||document.webkitFullscreenElement||document.body;
+  if(h && h.parentNode!==fsEl){ h.remove(); h=null; }
   if(!h){
     h=document.createElement("div");
     h.id="ytproFullFabs";
     h.setAttribute("style","position:fixed;right:12px;bottom:96px;z-index:2147483646;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;visibility:hidden;");
-    document.body.appendChild(h);
+    fsEl.appendChild(h);
   }
   return h;
 }
@@ -3008,6 +3038,36 @@ function injectShotFAB(){
 }
 
 function openMoreVideos(){
+  /*The real swipe-up is intercepted by the fullscreen slider shield, so the
+  native "more videos" sheet is opened by replaying the swipe synthetically
+  on the video surface; ytproSynGesture keeps our own capture listeners from
+  eating the synthetic TouchEvents. Falls back to the old selector clicks
+  where TouchEvent synthesis is unavailable.*/
+  var v=document.querySelector("#movie_player video.video-stream")||document.querySelector("video.video-stream");
+  if(v&&window.TouchEvent&&window.Touch&&typeof Touch==="function"){
+    var r=v.getBoundingClientRect();
+    if(r.width>40&&r.height>40){
+      var cx=r.left+r.width/2;
+      var y0=r.top+r.height*0.72;
+      var y1=r.top+r.height*0.18;
+      var i=0;
+      var done=function(){ window.ytproSynGesture=false; };
+      var fire=function(type,y,cur){
+        var t=new Touch({identifier:1,target:v,clientX:cx,clientY:y});
+        v.dispatchEvent(new TouchEvent(type,{touches:cur?[t]:[],targetTouches:cur?[t]:[],changedTouches:[t],bubbles:true,cancelable:true}));
+      };
+      var step=function(){
+        try{
+          if(i<=6){ fire("touchmove",y0+(y1-y0)*(i/6),true); i++; setTimeout(step,40); }
+          else{ fire("touchend",y1,false); done(); }
+        }catch(err){ done(); }
+      };
+      window.ytproSynGesture=true;
+      try{ fire("touchstart",y0,true); }catch(err){ done(); return; }
+      setTimeout(step,60);
+      return;
+    }
+  }
   var sel=[
     ".ytp-playlist-menu-button",
     '[aria-label*="list" i]',
@@ -3015,10 +3075,10 @@ function openMoreVideos(){
     '[aria-label*="related" i]',
     '[aria-label*="next" i]'
   ];
-  for(var i=0;i<sel.length;i++){
-    var n;
-    try{ n=document.querySelector(sel[i]); }catch(err){ n=null; }
-    if(n && n.isConnected){ n.click(); return; }
+  for(var n=0;n<sel.length;n++){
+    var node;
+    try{ node=document.querySelector(sel[n]); }catch(err){ node=null; }
+    if(node && node.isConnected){ node.click(); return; }
   }
   try{ Android.showToast("未找到原生「更多视频」入口，请运行探针后反馈"); }catch(err){}
 }
