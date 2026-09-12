@@ -51,6 +51,110 @@ var sens=0.005;
 var vol=Android.getVolume();
 var brt = Android.getBrightness()/100;
 
+/*Fullscreen brightness/volume swipe (v2; replaces the overlay sliders
+disabled 2026-09-09). Left 40% = brightness, right 40% = volume; middle
+20% and top/bottom chrome stay untouched. Detection lives in body capture
+listeners, no overlay element is created, so native controls (gear, seek,
+pause, speed, screenshot) are never blocked. Two fingers yield to pinch
+zoom, horizontal dominance yields to native seeking, <10px movement stays
+a tap. Brightness/volume are refetched on touchstart so the gauge is never
+stale.*/
+(function(){
+if(document.body.__ytproSliderBound){ return; }
+document.body.__ytproSliderBound=true;
+
+var st={x0:0,y0:0,b0:0,v0:0,side:0,on:false,fb:null,ht:0};
+var SWIPE_TOL=10;
+var Z_TOP=10;
+var Z_BOT=85;
+
+function tgt(e){
+var cn="";
+try{ cn=(e.target&&e.target.className&&e.target.className.toString)?e.target.className.toString():""; }catch(err){ cn=""; }
+return cn.indexOf("video-stream")>-1||cn.indexOf("player-controls-background")>-1;
+}
+function isFs(){
+return !!(document.fullscreenElement||document.webkitFullscreenElement);
+}
+function startVals(){
+try{ st.b0=Math.max(0,Math.min(1,Android.getBrightness()/100)); }catch(err){ st.b0=0.5; }
+try{ st.v0=Math.max(0,Math.min(1,Android.getVolume())); }catch(err){ st.v0=0.5; }
+brt=st.b0; vol=st.v0;
+}
+function show(){
+if(!st.fb||!document.getElementById("ytproSwipeFb")){
+st.fb=document.createElement("div");
+st.fb.id="ytproSwipeFb";
+st.fb.setAttribute("style","position:fixed;top:18%;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.72);color:#fff;padding:7px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;");
+st.fb.innerHTML="<span style='display:flex;align-items:center;'>"+(st.side<0?brtSvg:volSvg)+"</span><span id='ytproSwipeVal'></span><span style='display:inline-block;width:70px;height:6px;border-radius:3px;background:rgba(255,255,255,.25);margin-left:4px;'><span id='ytproSwipeBar' style='display:block;height:100%;width:50%;border-radius:3px;background:#fff;'></span></span>";
+document.body.appendChild(st.fb);
+}
+st.fb.style.opacity="1";
+}
+function refresh(){
+if(!st.fb){ return; }
+var val=Math.round((st.side<0?brt:vol)*100);
+var tv=document.getElementById("ytproSwipeVal");
+if(tv){ tv.textContent=val+"%"; }
+var bw=document.getElementById("ytproSwipeBar");
+if(bw){ bw.style.width=Math.max(0,Math.min(100,val))+"%"; }
+}
+function hide(){
+st.on=false; st.side=0;
+if(st.ht){ clearTimeout(st.ht); st.ht=0; }
+if(st.fb){
+st.fb.style.transition="opacity .25s ease-out";
+st.fb.style.opacity="0";
+st.ht=setTimeout(function(){ if(st.fb){ st.fb.remove(); st.fb=null; } },260);
+}
+}
+
+document.body.addEventListener("touchstart",function(e){
+if(localStorage.getItem("gesC")!="true"){ return; }
+if(!isFs()){ return; }
+if(e.touches.length!==1){ st.on=false; st.side=0; return; }
+if(!tgt(e)){ return; }
+var t=e.touches[0];
+var px=(t.clientX/window.innerWidth)*100;
+st.x0=t.clientX; st.y0=t.clientY;
+st.side=(px<40)?-1:((px>=60)?1:0);
+st.on=false;
+startVals();
+},{capture:true,passive:true});
+document.body.addEventListener("touchmove",function(e){
+if(localStorage.getItem("gesC")!="true"){ return; }
+if(!isFs()){ return; }
+if(!st.side){ return; }
+if(e.touches.length!==1){ return; }
+if(!tgt(e)){ return; }
+var t=e.touches[0];
+var dx=t.clientX-st.x0;
+var dy=st.y0-t.clientY;
+if(!st.on){
+if(Math.max(Math.abs(dx),Math.abs(dy))<SWIPE_TOL){ return; }
+if(Math.abs(dx)>Math.abs(dy)){ st.side=0; return; }
+st.on=true;
+}
+var py=(t.clientY/window.innerHeight)*100;
+if(py<Z_TOP||py>Z_BOT){ return; }
+e.preventDefault();
+if(st.side<0){
+brt=Math.max(0,Math.min(1,st.b0+dy*sens));
+try{ Android.setBrightness(brt); }catch(err){}
+}else{
+vol=Math.max(0,Math.min(1,st.v0+dy*sens));
+try{ Android.setVolume(vol); }catch(err){}
+}
+show();
+refresh();
+},{capture:true,passive:false});
+document.body.addEventListener("touchend",function(e){
+if(st.on){ hide(); }
+},{capture:true,passive:true});
+document.body.addEventListener("touchcancel",function(e){
+hide();
+},{capture:true,passive:true});
+})();
 if(localStorage.getItem("gesC") == null || localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
 localStorage.setItem("autoSpn","true");
 localStorage.setItem("bgplay","true");
@@ -1520,138 +1624,6 @@ document.getElementById("diskl").innerHTML=dislikes;
 }catch(e){}
 
 
-/* [DISABLED 2026-09-09] 亮度/音量滑条体验较差，且在全屏播放时透明覆盖层
-   拦截了 YouTube 原生齿轮设置的点击。暂时整体禁用此功能。
-   详见 docs/scene24_全屏齿轮修复方案.md。原始代码保留以便后续优化。
-//Volume and brightness slider 
-try{
-
-if(localStorage.getItem("gesC") == "true"){
-  
-
-var v= document.getElementById("player-container-id");
-var rect=v.getBoundingClientRect();
-
-var elStyle={
-height:"70%",
-width:rect.width*0.14+"px",
-display:"flex",
-"flex-direction":"column",
-"align-items":"center",
-"justify-content":"center",
-position:"absolute",
-top:"16%", 
-right:"0px",
-opacity:"0",
-//background:"#a57a"
-};  
-  
-  
-
-var el=document.createElement("div");
-var elB=document.createElement("div");
-elB.setAttribute("id","brtS");
-el.setAttribute("id","volS");
-
-Object.assign(el.style,elStyle);
-Object.assign(elB.style,elStyle);
-elB.style.left="0";
-
-el.innerHTML=`${volSvg}<div style="position:absolute;bottom:5%;left:calc(50% - 1.5px);background:rgba(255,255,255,0.5); height:70%;width:3px;border-radius:3px;color:red;box-shadow:0px 0px 2px black;pointer-events:none" ><div style="background:white;width:100%;height:${vol * 100}%;border-radius:3px;position:absolute;bottom:0;box-shadow:0px 0px 2px black;" id="volIS"></div></div>`;
-elB.innerHTML=`${brtSvg}<div style="position:absolute;bottom:5%;left:calc(50% - 1.5px);background:rgba(255,255,255,0.5); height:70%;width:3px;border-radius:3px;color:red;box-shadow:0px 0px 2px black;pointer-events:none" ><div style="background:white;width:100%;height:${brt * 100}%;border-radius:3px;position:absolute;bottom:0;box-shadow:0px 0px 1px black;" id="brtIS"></div></div>`;
-
-
-if(!document.getElementById("brtS")){
-document.getElementById("player-container-id").appendChild(elB);
-
-let brtStartY=0;
-elB.addEventListener("touchstart",(e)=>{
-e.stopPropagation();
-brtStartY=e.touches[0].pageY;
-},{ passive: false });
-
-elB.addEventListener("touchmove",(e)=>{
-e.preventDefault();
-e.stopPropagation();
-elB.style.opacity="1";
-
-var diff= brtStartY - e.touches[0].pageY;
-
-if(diff > 0){
-brt +=sens;
-}else{
-brt -=sens;
-}
-
-if(brt > 1) brt=1;
-if(brt < 0) brt =0;
-
-Android.setBrightness(brt);
-document.getElementById("brtIS").style.height=brt*100+"%";
-
-},{ passive: false })
-
-
-//hide the element after touch endas
-elB.addEventListener("touchend",(e)=>{
-e.stopPropagation();
-elB.style.opacity="0";
-},{ passive: false });
-
-}
-
-
-
-
-
-if(!document.getElementById("volS")){
-document.getElementById("player-container-id").appendChild(el);
-
-let volStartY=0;
-el.addEventListener("touchstart",(e)=>{
-e.stopPropagation();
-volStartY=e.touches[0].pageY;
-},{ passive: false });
-
-el.addEventListener("touchmove",(e)=>{
-e.preventDefault();
-e.stopPropagation();
-el.style.opacity="1";
-
-var diff= volStartY - e.touches[0].pageY;
-
-if(diff > 0){
-vol +=sens;
-}else{
-vol -=sens;
-}
-
-if(vol > 1) vol=1;
-if(vol < 0) vol =0;
-
-Android.setVolume(vol);
-document.getElementById("volIS").style.height=vol * 100 +"%";
-
-},{ passive: false })
-
-
-
-//hide the element after touch endas , yes endas
-el.addEventListener("touchend",(e)=>{
-e.stopPropagation();
-el.style.opacity="0";
-},{ passive: false });
-
-}
-
-}
-
-
-  
-}catch(e){
-  console.log(e)
-}
-*/
 
 
 
@@ -1716,6 +1688,59 @@ ytproMainDiv.appendChild(ytproDownVidElem);
 ytproDownVidElem.addEventListener("click",
 function(){
 ytproSendToDownloader();
+});
+
+/*Copy / share helpers: current title + canonical URL.*/
+function ytproCurrentTitle(){
+  try{
+    var t="";
+    if(window.location.pathname.indexOf("shorts") > -1){
+      t=document.getElementsByClassName('ytShortsVideoTitleViewModelShortsVideoTitle')[0].textContent;
+    }else{
+      t=document.getElementsByClassName('slim-video-metadata-header')[0].textContent;
+    }
+    return t.replace(/\s+/g," ").trim();
+  }catch(e){ return ""; }
+}
+function ytproCanonUrl(){
+  return window.location.href.replace("m.youtube.com","www.youtube.com");
+}
+function ytproShareText(){
+  return ytproCurrentTitle()+"\n"+ytproCanonUrl();
+}
+
+/*Copy Link Button*/
+var ytproCopyVidElem=document.createElement("div");
+sty(ytproCopyVidElem);
+ytproCopyVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path fill="${c}" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg><span style="margin-left:2px">复制链接<span>`;
+ytproMainDiv.appendChild(ytproCopyVidElem);
+ytproCopyVidElem.addEventListener("click",
+function(){
+var text=ytproShareText();
+try{
+  Android.copyLink(text);
+  Android.showToast("已复制链接（含标题）");
+}catch(e){
+  var ta=document.createElement("textarea");
+  ta.value=text;
+  ta.style.position="fixed";ta.style.opacity="0";
+  document.body.appendChild(ta);
+  ta.select();
+  try{document.execCommand("copy");}catch(x){}
+  ta.remove();
+}
+});
+
+/*Share Button*/
+var ytproShareVidElem=document.createElement("div");
+sty(ytproShareVidElem);
+ytproShareVidElem.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path fill="${c}" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg><span style="margin-left:2px">分享<span>`;
+ytproMainDiv.appendChild(ytproShareVidElem);
+ytproShareVidElem.addEventListener("click",
+function(){
+try{
+  Android.shareText(ytproShareText());
+}catch(e){}
 });
 
 /*PIP Button*/

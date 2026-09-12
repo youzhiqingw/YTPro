@@ -1,6 +1,8 @@
 package com.google.android.youtube.pro.webview;
 
 import android.app.PictureInPictureParams;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -85,6 +87,32 @@ public class WebAppInterface {
 		});
 	}
 	
+	@JavascriptInterface
+	public void copyLink(String text) {
+		activity.runOnUiThread(() -> {
+			try {
+				ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+				cm.setPrimaryClip(ClipData.newPlainText("YTPro link", text));
+			} catch (Exception e) {
+				Toast.makeText(activity.getApplicationContext(), "Copy failed", Toast.LENGTH_SHORT).show();
+			}
+		});
+	}
+
+	@JavascriptInterface
+	public void shareText(String text) {
+		activity.runOnUiThread(() -> {
+			try {
+				Intent send = new Intent(Intent.ACTION_SEND);
+				send.setType("text/plain");
+				send.putExtra(Intent.EXTRA_TEXT, text);
+				activity.startActivity(Intent.createChooser(send, "Share to"));
+			} catch (Exception e) {
+				Toast.makeText(activity.getApplicationContext(), "Share failed", Toast.LENGTH_SHORT).show();
+			}
+		});
+	}
+
 	@JavascriptInterface
 	public void fullScreen(boolean value) {
 		activity.portrait = value;
