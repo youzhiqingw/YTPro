@@ -1876,7 +1876,7 @@ position:absolute;bottom:20px;
 z-index:9;padding:20px;text-align:center;border-radius:25px;text-align:center;
 `);
 ytproHh.innerHTML=`<style>#heartytprodiv a{text-decoration:none;} #heartytprodiv li{list-style:none; display:flex;align-items:center;border-radius:15px;padding:0px;background:${d};margin:5px;}</style>`;
-ytproHh.innerHTML+="Liked Videos<ul id='listurl'>";
+ytproHh.innerHTML+="喜欢的视频<ul id='listurl'>";
 
 
 ytproHh.innerHTML+="<style>.thum{height:70px;border-radius:5px;}.thum img{float:left;height:70px;width:125px;border-radius:15px 0 0 15px;flex-shrink: 0;}</style>";
@@ -2674,23 +2674,72 @@ function injectSpeedControls(){
   }
 }
 
-/*One-tap HD screenshot: grab the current frame at the video's native
-resolution and let the Android side store it in the system gallery
-(Pictures/YTPro).*/
-function ytproScreenshot(){
-  // YouTube 视频是跨域 MSE，canvas.toDataURL 会因画布被污染抛 SecurityError，
-  // 改由 Android 端用 PixelCopy 直接截 WebView 画面，绕开跨域限制。
+/*One-tap HD screenshot (Canvas 方案)：把当前帧按视频原始分辨率画进 canvas，
+用 toBlob 异步编码（FileReader 转 base64），交给 Android 端存入系统相册
+Pictures/YTPro。YouTube 是 MSE 同源 blob 流，drawImage 不会污染画布；
+因此不做 crossOrigin 处理（那样反而会中断播放）。*/
+function ytproScreenshotFail(msg){
   try{
-    var d=new Date();
-    function p(n){ return (n<10?"0":"")+n; }
-    var id="";
-    try{ id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24); }catch(e){ id=""; }
-    if(!id){ id="shot"; }
-    var name="YTPro_"+id+"_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+".jpg";
-    Android.captureScreenshot(name);
-    ytproFlash();
+    Android.showToast(localStorage.getItem("devMode")=="true" ? ("截图失败："+msg) : "截图失败，可到设置开启开发者模式查看原因");
+  }catch(err){}
+}
+
+function ytproCanvasToBase64(canvas,ok,fail){
+  var fromDataUrl=function(dataUrl){
+    var i=dataUrl.indexOf(",");
+    ok(i>-1 ? dataUrl.slice(i+1) : dataUrl);
+  };
+  try{
+    if(typeof canvas.toBlob === "function"){
+      canvas.toBlob(function(blob){
+        if(!blob){ fail("toBlob 返回空"); return; }
+        try{
+          var reader=new FileReader();
+          reader.onload=function(){ fromDataUrl(reader.result); };
+          reader.onerror=function(){ fail("FileReader 读取失败"); };
+          reader.readAsDataURL(blob);
+        }catch(e){ fail(e&&e.message?e.message:"FileReader 异常"); }
+      },"image/jpeg",0.95);
+      return;
+    }
+  }catch(e){ /*toBlob 不可用或抛错：走 toDataURL 兜底*/ }
+  try{
+    fromDataUrl(canvas.toDataURL("image/jpeg",0.95));
+  }catch(e){
+    fail(e && e.name==="SecurityError" ? "画布被跨域污染(SecurityError)" : (e&&e.message?e.message:"toDataURL 失败"));
+  }
+}
+
+function ytproScreenshot(){
+  var v=document.querySelector(".video-stream");
+  if(!v || !v.videoWidth || !v.videoHeight || v.readyState < 2){
+    try{ Android.showToast("视频未就绪，播放片刻后再试"); }catch(err){}
+    return;
+  }
+  try{
+    var canvas=document.createElement("canvas");
+    canvas.width=v.videoWidth;
+    canvas.height=v.videoHeight;
+    canvas.getContext("2d").drawImage(v,0,0,canvas.width,canvas.height);
+
+    ytproCanvasToBase64(canvas,function(b64){
+      try{
+        var d=new Date();
+        function p(n){ return (n<10?"0":"")+n; }
+        var id="";
+        try{ id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24); }catch(e){ id=""; }
+        if(!id){ id="shot"; }
+        var name="YTPro_"+id+"_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+".jpg";
+        if(typeof Android!=="undefined" && typeof Android.saveScreenshot==="function"){
+          Android.saveScreenshot(name,b64);
+          ytproFlash();
+        }else{
+          ytproScreenshotFail("saveScreenshot 桥接不可用，请更新到最新版");
+        }
+      }catch(err){ ytproScreenshotFail(err&&err.message?err.message:"保存异常"); }
+    },ytproScreenshotFail);
   }catch(err){
-    try{ Android.showToast("Screenshot failed"); }catch(err2){}
+    ytproScreenshotFail(err&&err.message?err.message:"截图异常");
   }
 }
 
