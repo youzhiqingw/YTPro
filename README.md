@@ -1,33 +1,7 @@
-<p align="center">
-<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/ytpro.gif' height=150>
-</p>
-<h1 align=center>YT PRO</h1>
-
-<div align="center">
-
-[![Gradle](https://github.com/youzhiqingw/YTPro/actions/workflows/gradle.yml/badge.svg)](https://github.com/youzhiqingw/YTPro/actions/workflows/gradle.yml)
-<a href="https://www.jsdelivr.com/package/npm/ytpro?tab=stats"><img alt="jsDelivr monthly hits badge" src="https://data.jsdelivr.com/v1/package/npm/ytpro/badge"></a>
-<img src=https://img.shields.io/github/downloads/youzhiqingw/YTPro/total>
 
 [English](README.md) | [中文](README.zh.md)
-
-</div>
-
 ---
-
-## Download
-
-[![Download](https://custom-icon-badges.herokuapp.com/badge/-Download-ff0000?style=for-the-badge&logo=download&logoColor=white)](https://nightly.link/youzhiqingw/YTPro/workflows/gradle/main/YTPRO.zip)
-
-## Screenshots
-
-| | | |
-|:--:|:--:|:--:|
-|<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen3.jpg'> | <img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen2.jpg'> |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen5.jpg'> |
-|<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen6.jpg'> | <img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen4.jpg'> |<img src='https://raw.githubusercontent.com/youzhiqingw/YTPro/main/.github/img/screen1.jpg'> |
-
 ## Features
-
 - **Video Downloader** — Download YouTube videos in multiple qualities
 - **Shorts Downloader** — Save short-form videos
 - **Built-in Muxer** — Merge video and audio streams
@@ -48,20 +22,14 @@
 - **Minimal Size** — Lightweight APK footprint
 - **Adaptive Icons** — Follows system theme
 - **Auto Update** — Built-in app updater
-
 ## ToDo
-
 - [ ] Audio Enhancement
 - [ ] Silence Skipping
-
 ## Credits
-
 - [SponsorBlock](https://github.com/ajayyy/SponsorBlock)
 - [Return YouTube Dislike](https://github.com/Anarios/return-youtube-dislike)
 - [YouTube.js](https://github.com/LuanRT/YouTube.js/)
-
 ## Disclaimer
-
 This is an educational project demonstrating JavaScript injection into WebView for enhanced productivity. Use at your own risk.
 
 ---
