@@ -70,6 +70,7 @@ if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpe
 if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro_cleanShare","true");}
 if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop","false");}
 if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro_noAutoplay","true");}
+if(localStorage.getItem("ytpro_lite") == null){localStorage.setItem("ytpro_lite","false");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -842,6 +843,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <br>
 <div>开发者模式 <span data-action="sttCnf" data-value="devMode" style="${sttCnf(0,0,"devMode")}" ><b style="${sttCnf(0,1,"devMode")}"></b></span></div>
 <div>冻结主页 <span data-action="sttCnf" data-value="freezeHome" style="${sttCnf(0,0,"freezeHome")}" ><b style="${sttCnf(0,1,"freezeHome")}" ></b></span></div>
+<div>轻量模式 <span data-action="sttCnf" data-value="ytpro_lite" style="${sttCnf(0,0,"ytpro_lite")}" ><b style="${sttCnf(0,1,"ytpro_lite")}"></b></span></div>
 <br><br>
 <p style="font-size:1.25rem;width:calc(100% - 20px);margin:auto;text-align:left"><b style="font-weight:bold">免责声明</b>：本项目为教育用途，演示如何向 WebView 注入 JavaScript 以提升使用效率。<br>
 源码见 <a href="https://www.youtube.com/redirect?q=https://github.com/prateek-chaubey/YTPRO" style="font-family:monospace;" > https://github.com/prateek-chaubey/YTPRO</a>
@@ -2756,6 +2758,23 @@ function aspectMode(){
   return localStorage.getItem("aspectMode") || "fit";
 }
 
+/*轻量模式：关闭动画/过渡并给 feed 图片加 content-visibility。
+选择器用 :not(#movie_player) 排除播放器容器，不影响播放器自身动画。
+老 WebView 若不支持 content-visibility 会忽略该声明，不影响其余规则。*/
+function ytproApplyLite(){
+  var el=document.getElementById("ytpro_lite");
+  if(localStorage.getItem("ytpro_lite") != "true"){
+    if(el){ el.remove(); }
+    return;
+  }
+  if(!el){
+    el=document.createElement("style");
+    el.id="ytpro_lite";
+    (document.head||document.documentElement).appendChild(el);
+  }
+  el.textContent=":not(#movie_player):not(#movie_player *){animation-duration:0.001ms!important;transition-duration:0.001ms!important}img[src*=\"i.ytimg.com\"]:not(#movie_player):not(#movie_player *){content-visibility:auto}";
+}
+
 function applyAspect(){
   var v=document.getElementsByClassName('video-stream')[0];
   if(!v) return;
@@ -2818,6 +2837,9 @@ addMaxButton();
 
 //aspect ratio
 applyAspect();
+
+//lite mode style
+ytproApplyLite();
 
 //settingsTab
 addSettingsTab();
