@@ -7,11 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.media.AudioManager;
 import android.net.Uri;
-import android.provider.Settings;
 import android.util.Rational;
-import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
@@ -31,7 +28,6 @@ import com.google.android.youtube.pro.utils.MediaMuxerUtils;
 public class WebAppInterface {
 	private final MainActivity activity;
 	private final YTProWebView web;
-	private final AudioManager audioManager;
 	
 	private String icon = "";
 	private String title = "";
@@ -41,7 +37,6 @@ public class WebAppInterface {
 	public WebAppInterface(MainActivity activity, YTProWebView web) {
 		this.activity = activity;
 		this.web = web;
-		this.audioManager = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
 	}
 	
 	@JavascriptInterface
@@ -255,38 +250,6 @@ public class WebAppInterface {
 	@JavascriptInterface
 	public String getAllCookies(String url) {
 		return CookieManager.getInstance().getCookie(url);
-	}
-	
-	@JavascriptInterface
-	public float getVolume() {
-		int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-		int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-		return (float) currentVolume / maxVolume;
-	}
-	
-	@JavascriptInterface
-	public void setVolume(float volume) {
-		int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-		audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int) (max * volume), 0);
-	}
-	
-	@JavascriptInterface
-	public float getBrightness() {
-		try {
-			return (Settings.System.getInt(activity.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS) / 255f) * 100f;
-		} catch (Settings.SettingNotFoundException e) {
-			return 50f;
-		}
-	}
-	
-	@JavascriptInterface
-	public void setBrightness(final float brightnessValue) {
-		activity.runOnUiThread(() -> {
-			float brightness = Math.max(0f, Math.min(brightnessValue, 1f));
-			WindowManager.LayoutParams layout = activity.getWindow().getAttributes();
-			layout.screenBrightness = brightness;
-			activity.getWindow().setAttributes(layout);
-		});
 	}
 	
 	@JavascriptInterface

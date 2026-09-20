@@ -46,10 +46,9 @@ const HOLD_SPEED_MIN=0.25;
 const HOLD_DELAY=500;
 const HOLD_MOVE_TOL=12;
 
-if(localStorage.getItem("gesC") == null || localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
+if(localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
 localStorage.setItem("autoSpn","true");
 localStorage.setItem("bgplay","true");
-localStorage.setItem("gesC","true");
 localStorage.setItem("gesM","false");
 localStorage.setItem("fzoom","false");
 localStorage.setItem("devMode","false");
@@ -806,8 +805,6 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <br>
 <div>自动跳过赞助片段 <span data-action="sttCnf" data-value="autoSpn" style="${sttCnf(0,0,"autoSpn")}" ><b style="${sttCnf(0,1,"autoSpn")}"></b></span></div>
 <br>
-<div>手势控制 <span data-action="sttCnf" data-value="gesC" style="${sttCnf(0,0,"gesC")}" ><b style="${sttCnf(0,1,"gesC")}"></b></span></div>
-<br>
 <div>小窗手势 <span data-action="sttCnf" data-value="gesM" style="${sttCnf(0,0,"gesM")}" ><b style="${sttCnf(0,1,"gesM")}"></b></span></div>
 <br>
 <div>强制缩放 <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
@@ -1049,15 +1046,6 @@ if(localStorage.getItem("bgplay") == "true"){
 Android.setBgPlay(true);
 }else{
 Android.setBgPlay(false);
-}
-
-
-if(localStorage.getItem("gesC") != "true"){
-try{
-document.getElementById("brtS").remove();
-document.getElementById("volS").remove();
-}catch{}
-  
 }
 
 if(localStorage.getItem("devMode") == "false"){
@@ -1318,7 +1306,6 @@ function startHold(){
   if(!video) return;
   holdActive = true;
   try{ video.playbackRate = holdSpeedValue(); }catch(err){}
-  showHoldIndicator();
 }
 
 function cancelHold(){
@@ -1332,26 +1319,6 @@ function releaseHold(){
     if(video){ try{ video.playbackRate = YTProSpeed.current; }catch(err){} }
     holdActive=false;
   }
-  hideHoldIndicator();
-}
-
-function showHoldIndicator(){
-  var el=document.getElementById("ytproHoldIndicator");
-  var fsEl=document.fullscreenElement||document.webkitFullscreenElement||document.body;
-  if(el && el.parentNode!==fsEl){ el.remove(); el=null; }
-  if(!el){
-    el=document.createElement("div");
-    el.id="ytproHoldIndicator";
-    el.setAttribute("style",`position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.7);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;font-weight:600;pointer-events:none;`);
-    fsEl.appendChild(el);
-  }
-  el.textContent = holdSpeedValue() + "x";
-  el.style.display = "block";
-}
-
-function hideHoldIndicator(){
-  var el=document.getElementById("ytproHoldIndicator");
-  if(el) el.style.display = "none";
 }
 
 document.body.addEventListener('touchstart', e => {
@@ -1711,12 +1678,6 @@ ytproAspectElem.addEventListener("click",cycleAspect);
 
 
 }else if(window.location.href.indexOf("youtube.com/shorts") > -1){
-
-
-let b = document.getElementById("brtS");
-let v = document.getElementById("volS");
-if (b) b.remove();
-if (v) v.remove();
 
 
 if(document.getElementById("ytproMainSDivE") == null){
