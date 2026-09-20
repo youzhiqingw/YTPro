@@ -69,6 +69,7 @@ if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","
 if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
 if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro_cleanShare","true");}
 if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop","false");}
+if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro_noAutoplay","true");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -813,6 +814,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <div>长按调速 <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
 <div>倍速按钮 <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
 <div>单视频循环 <span data-action="sttCnf" data-value="ytpro_loop" style="${sttCnf(0,0,"ytpro_loop")}" ><b style="${sttCnf(0,1,"ytpro_loop")}"></b></span></div>
+<div>关闭自动播放下一个 <span data-action="sttCnf" data-value="ytpro_noAutoplay" style="${sttCnf(0,0,"ytpro_noAutoplay")}" ><b style="${sttCnf(0,1,"ytpro_noAutoplay")}"></b></span></div>
 <div>长按速度值 <span data-action="holdSpeedVal" style="position:absolute;right:10px;height:auto;width:auto;min-width:56px;padding:2px 12px;border-radius:14px;background:${isD ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)"};color:${isD ? "#fff" : "#151515"};font-size:1.1rem;font-weight:600;text-align:center;">${holdSpeedValue()}x</span></div>
 <br>
 <div>后台播放 <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
@@ -1366,6 +1368,23 @@ checkSponsors(e.destination.url);
 addSettingsTab();
 });
 
+/*默认关闭自动播放下一个：watch 页加载后若原生开关为开则点一次关闭。
+本页会话内用户手动打开后不再干预（__ytproNoAutoplayDone 去抖）。
+选择器 .ytp-autonav-toggle-button 经检索确认仍有效（2024-2025 注入脚本沿用）。*/
+function ytproNoAutoplay(){
+  if(localStorage.getItem("ytpro_noAutoplay") != "true") return;
+  if(window.__ytproNoAutoplayDone) return;
+  if(window.location.pathname.indexOf("watch") < 0) return;
+  var b=document.querySelector(".ytp-autonav-toggle-button");
+  if(!b || !b.isConnected) return;
+  window.__ytproNoAutoplayDone=true;
+  var on=(b.getAttribute("aria-pressed")=="true");
+  if(on){ try{ b.click(); }catch(e){} }
+}
+
+/*首次加载（非 SPA 跳转）也尝试一次，控制条渲染晚于脚本执行*/
+setTimeout(ytproNoAutoplay, 800);
+
 // YouTube SPA 路由跳转（pushState/popstate/浏览器前进后退）时，重新评估
 // 齿轮显隐，确保任何页面都不残留注入齿轮。
 // MutationObserver 依赖 DOM 变化，纯 hash 或无 DOM 变更的跳转可能漏触发。
@@ -1374,6 +1393,12 @@ window.addEventListener("popstate", function(){
 });
 window.addEventListener("yt-navigate-finish", function(){
   addSettingsTab();
+  /*控制条渲染可能晚于导航完成事件，稍后重试（__ytproNoAutoplayDone 保证每页只干预一次）*/
+  setTimeout(ytproNoAutoplay, 500);
+  setTimeout(ytproNoAutoplay, 1500);
+});
+window.addEventListener("yt-navigate-start", function(){
+  window.__ytproNoAutoplayDone=false; /*每个新页面会话重置干预标记*/
 });
 
 
