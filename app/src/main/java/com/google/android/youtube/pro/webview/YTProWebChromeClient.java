@@ -79,17 +79,14 @@ public class YTProWebChromeClient extends WebChromeClient {
         decor.setSystemUiVisibility(immersiveFlags());
 
         // Match the fullscreen orientation to the video's own aspect ratio.
-        // Portrait content starts fixed (locked) in portrait and offers a lock
-        // toggle; landscape content starts in sensor-landscape (180 degree flip).
         // activity.portrait is kept in sync with the video element by the
         // injected script before requestFullscreen() fires.
         final int orientation;
         if (activity.isPip) {
             orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
         } else if (activity.portrait) {
-            mOrientationLocked = true;
+            // 竖屏内容固定竖屏全屏；不显示锁定旋转按钮（已按用户要求移除）
             orientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-            addLockOverlay(decor);
         } else {
             orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
         }

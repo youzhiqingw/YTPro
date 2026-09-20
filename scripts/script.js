@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.15";
+var YTProVer="4.16";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -77,7 +77,6 @@ localStorage.setItem(x,"true");
 if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","true");}
 if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
 if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro_cleanShare","true");}
-if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop","false");}
 if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro_noAutoplay","true");}
 if(localStorage.getItem("ytpro_lite") == null){localStorage.setItem("ytpro_lite","false");}
 if(localStorage.getItem("ytpro_hideStyles") == null){localStorage.setItem("ytpro_hideStyles","{}");}
@@ -97,9 +96,38 @@ transport freezes identically. Nothing is written to localStorage: dropping
 the snapshot (manual swipe on home, or toggling the switch off) or reloading
 the app always yields a fresh home feed.*/
 function ytproIsHomeBrowse(url,bodyText){
-  if(!url||!bodyText){ return false; }
+  if(!url){ return false; }
   if(url.indexOf("youtubei/v1/browse")<0){ return false; }
-  return bodyText.indexOf('"FEwhat_to_watch"')>-1 && bodyText.indexOf("continuation")<0;
+  /*加载更多（continuation）请求不冻结，否则下滑分页会失效*/
+  if(bodyText && bodyText.indexOf("continuation")>-1){ return false; }
+  /*browseId 可能以 JSON（带引号）、URLSearchParams（无引号）、URL 参数三种形态出现*/
+  if(bodyText){
+    if(bodyText.indexOf("FEwhat_to_watch")>-1){ return true; }
+    var m=bodyText.match(/[?&]browseId=([^&"']+)/);
+    if(m && decodeURIComponent(m[1]).indexOf("FEwhat_to_watch")>-1){ return true; }
+  }
+  var mu=url.match(/[?&]browseId=([^&"']+)/);
+  if(mu && decodeURIComponent(mu[1]).indexOf("FEwhat_to_watch")>-1){ return true; }
+  return false;
+}
+function ytproFreezeDbg(msg){
+  if(localStorage.getItem("devMode")=="true"){ try{ console.warn("[ytproFreeze] "+msg); }catch(e){} }
+}
+/*统一从 fetch/XHR body 提取文本：string / URLSearchParams / ArrayBuffer / 其它可 toString 对象。
+ReadableStream / FormData 无法同步读取，返回空串（调用方走 URL 参数兜底匹配）。*/
+function ytproFetchBodyText(b){
+  if(typeof b==="string"){ return b; }
+  if(!b){ return ""; }
+  try{
+    if(typeof URLSearchParams!=="undefined" && b instanceof URLSearchParams){ return b.toString(); }
+    if(typeof ArrayBuffer!=="undefined" && b instanceof ArrayBuffer){
+      try{ return new TextDecoder("utf-8").decode(b); }catch(e){ return ""; }
+    }
+  }catch(e){}
+  var s="";
+  try{ s=b.toString(); }catch(e){ return ""; }
+  if(s && s.indexOf("[object")!==0){ return s; }
+  return "";
 }
 function ytproLoadHomeSnapshot(){
   return freezeHomeCache;
@@ -124,29 +152,67 @@ document.body.addEventListener("touchmove",function(){
     freezeHomeCache=null;
   }
 },{capture:true,passive:true});
+/*首屏兜底：脚本注入时若已在首页且 ytInitialData 已渲染出首页 feed，
+直接把它存为快照。解决"初始 browse 请求早于脚本注入、快照永远没机会
+被记录"导致的冻结完全失效。数据只在当前确为首页时捕获，避免把
+watch/shorts 等页面数据误存为快照。*/
+function ytproSeedHomeSnapshot(){
+  if(localStorage.getItem("freezeHome")!="true"){ return; }
+  if(freezeHomeCache!=null){ return; }
+  if(!ytproIsHomePath()){ return; }
+  try{
+    if(window.ytInitialData && typeof window.ytInitialData==="object"){
+      var s=JSON.stringify(window.ytInitialData);
+      if(s && s.indexOf("FEwhat_to_watch")>-1){
+        ytproSaveHomeSnapshot(s);
+        ytproFreezeDbg("seeded snapshot from ytInitialData");
+      }
+    }
+  }catch(e){}
+}
+ytproSeedHomeSnapshot();
+/*SPA 内导航回首页时 ytInitialData 也会更新，再兜底一次*/
+window.addEventListener("yt-navigate-finish",ytproSeedHomeSnapshot);
 if(!window.__ytproFreezeHome){
 window.__ytproFreezeHome=true;
 var _ytproFetch=window.fetch.bind(window);
 window.fetch=function(input,init){
-  if(localStorage.getItem("freezeHome")=="true"){
-    try{
-      var u=(typeof input==="string")?input:(input&&input.url?input.url:"");
-      var b=(init&&init.body)?((typeof init.body==="string")?init.body:init.body.toString()):"";
-      if(ytproIsHomeBrowse(u,b)){
-        var snap=ytproLoadHomeSnapshot();
-        if(snap!=null){
-          return Promise.resolve(new Response(snap,{status:200,statusText:"OK",headers:{"Content-Type":"application/json"}}));
-        }
-        return _ytproFetch(input,init).then(function(r){
-          var c=r.clone();
-          c.text().then(function(t){ ytproSaveHomeSnapshot(t); }).catch(function(){});
-          return r;
-        });
-      }
-    }catch(e){}
+  if(localStorage.getItem("freezeHome")!="true"){
+    return _ytproFetch(input,init);
+  }
+  try{
+    /*fetch 传参有两种形态：fetch(url,{body}) 或 fetch(new Request(url,{body}))。
+    统一取出 URL 与 body 文本；body 若是流/FormData 无法同步读，用 URL 参数兜底。*/
+    var u=(typeof input==="string")?input:(input&&input.url?input.url:"");
+    var reqBody=null;
+    if(init && init.body){ reqBody=init.body; }
+    else if(input && input.body){ reqBody=input.body; }
+    var b=ytproFetchBodyText(reqBody);
+    if(!b && u.indexOf("youtubei/v1/browse")>-1 && input && input.body && typeof input.clone==="function"){
+      /*Request body 可能是流，clone 后异步读文本再判定*/
+      return input.clone().text().then(function(t){
+        return ytproFreezeFetch(u,t,input,init);
+      }).catch(function(){ return _ytproFetch(input,init); });
+    }
+    return ytproFreezeFetch(u,b,input,init);
+  }catch(e){ return _ytproFetch(input,init); }
+};
+function ytproFreezeFetch(u,b,input,init){
+  if(ytproIsHomeBrowse(u,b)){
+    var snap=ytproLoadHomeSnapshot();
+    if(snap!=null){
+      ytproFreezeDbg("replay cached home feed");
+      return Promise.resolve(new Response(snap,{status:200,statusText:"OK",headers:{"Content-Type":"application/json"}}));
+    }
+    ytproFreezeDbg("record home feed for next freeze");
+    return _ytproFetch(input,init).then(function(r){
+      var c=r.clone();
+      c.text().then(function(t){ ytproSaveHomeSnapshot(t); }).catch(function(){});
+      return r;
+    });
   }
   return _ytproFetch(input,init);
-};
+}
 }
 
 
@@ -793,17 +859,6 @@ color:${c};
 ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <span style="font-size:10px">v${YTProVer}</span>
 <br><br>
-<div data-action="follow" style="min-height:35px;height:auto;width:95%;margin:auto;background:#ee2a7b44;border-radius:30px;margin-bottom:15px;border:1px solid #ee2a7b;display:flex;padding:5px;gap:8px;">
-
-<img style="flex-shrink: 0;height:40px;width:40px;border-radius:50%;" src="https://raw.githubusercontent.com/prateek-chaubey/YTPro/refs/heads/main/.github/img/habitius.webp" >
-<div style="display:flex;flex-direction:column;align-items:flex-start;height:100%;width:auto;flex-shrink:0;font-size:14px;background:re;padding:0;"><b>请在 Instagram 关注 Habitius</b>获取每日习惯、生活方式与健康小贴士 </div>
-
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
-<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-</svg>
-
-</div>
-
 <div><input type="url" placeholder="输入 YouTube 链接" id="ytproUrlInput" ></div>
 <br>
 <button data-action="hearts">喜欢的视频
@@ -819,7 +874,6 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 </button>
 <br>
 <!-- 播放 -->
-<div>单视频循环 <span data-action="sttCnf" data-value="ytpro_loop" style="${sttCnf(0,0,"ytpro_loop")}" ><b style="${sttCnf(0,1,"ytpro_loop")}"></b></span></div>
 <div>关闭自动播放下一个 <span data-action="sttCnf" data-value="ytpro_noAutoplay" style="${sttCnf(0,0,"ytpro_noAutoplay")}" ><b style="${sttCnf(0,1,"ytpro_noAutoplay")}"></b></span></div>
 <div>倍速按钮 <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
 <div>长按调速 <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
@@ -1057,10 +1111,7 @@ x.children[0].style.background=s[0];
 
 if(z == "freezeHome"){
   if(localStorage.getItem("freezeHome") == "false"){ ytproClearHomeSnapshot(); }
-}
-
-if(z == "ytpro_loop"){
-  try{ var v=document.getElementsByClassName('video-stream')[0]; if(v){ v.loop = (localStorage.getItem("ytpro_loop")=="true"); } }catch(e){}
+  else{ ytproSeedHomeSnapshot(); }
 }
 
 if(z == "ytproSpeedBtn"){
@@ -1320,7 +1371,6 @@ function bindSpeedWatch(video){
   });
   video.addEventListener("loadeddata",function(){
     YTProSpeed.ensureVideoReset(video);
-    try{ video.loop = (localStorage.getItem("ytpro_loop")=="true"); }catch(e){}
   });
 }
 
@@ -2225,19 +2275,26 @@ document.addEventListener("fullscreenchange",function(){
 
 
 //request full screen
+/*全屏方向判定：用 videoWidth/videoHeight（视频真实分辨率）判断横竖屏，
+而不是 getBoundingClientRect()（那是非全屏下播放器盒子的尺寸，9:16 竖屏
+视频在详情页被压成横向盒子时会被误判成横屏）。元数据未就绪时回退到盒子
+尺寸判断，避免 0 值。*/
+function ytproFullscreenIsPortrait(){
+  var v=document.getElementsByClassName('video-stream')[0];
+  if(!v){ return false; }
+  try{
+    var w=v.videoWidth, h=v.videoHeight;
+    if(w>0 && h>0){ return h > w; }
+    var r=v.getBoundingClientRect();
+    return r.height > r.width;
+  }catch(e){ return false; }
+}
+
 Element.prototype.requestFullscreen = function (...args) {
 // A normal (non-PIP) fullscreen request resets the PIP flag, so a stale flag
 // left over from a previous PIP session can never block the exit later.
 isPIP=false;
-var video = document.getElementsByClassName('video-stream')[0];
-
-if(video.getBoundingClientRect().height > video.getBoundingClientRect().width){
-Android.fullScreen(true);
-}
-else{
-Android.fullScreen(false);
-}
-
+Android.fullScreen(ytproFullscreenIsPortrait());
 return originalRequestFullscreen.apply(this, args);
 };
 
@@ -2378,16 +2435,21 @@ return;
 // otherwise the real browse response is recorded for the next time.
 if(localStorage.getItem("freezeHome")=="true" && this._interceptedUrl.indexOf("youtubei/v1/browse")>-1){
 try{
-var b=typeof body==="string"?body:(body?body.toString():"");
+var b=ytproFetchBodyText(body);
 if(ytproIsHomeBrowse(this._interceptedUrl,b)){
 var snap=ytproLoadHomeSnapshot();
 if(snap!=null){
+ytproFreezeDbg("XHR replay cached home feed");
 var x=this;
+var needJson=(x.responseType==="json");
 Object.defineProperty(x,"readyState",{configurable:true,get:function(){return 4;}});
 Object.defineProperty(x,"status",{configurable:true,get:function(){return 200;}});
 Object.defineProperty(x,"statusText",{configurable:true,get:function(){return "OK";}});
 Object.defineProperty(x,"responseText",{configurable:true,get:function(){return snap;}});
-Object.defineProperty(x,"response",{configurable:true,get:function(){return snap;}});
+Object.defineProperty(x,"response",{configurable:true,get:function(){
+  if(needJson){ try{ return JSON.parse(snap); }catch(e){ return snap; } }
+  return snap;
+}});
 if(x.onreadystatechange){ try{ x.onreadystatechange.call(x); }catch(e){} }
 if(x.onload){ try{ x.onload.call(x); }catch(e){} }
 if(x.onloadend){ try{ x.onloadend.call(x); }catch(e){} }
@@ -2396,6 +2458,7 @@ try{ x.dispatchEvent(new Event("load")); }catch(e){}
 try{ x.dispatchEvent(new Event("loadend")); }catch(e){}
 return;
 }
+ytproFreezeDbg("XHR record home feed for next freeze");
 this.addEventListener("load",function(){
 try{
 if(this.status===200&&this.responseText){ ytproSaveHomeSnapshot(this.responseText); }
@@ -2989,13 +3052,8 @@ addSettingsTab();
 
 
 try{
-var video = document.getElementsByClassName('video-stream')[0];
-if(video.getBoundingClientRect().height > video.getBoundingClientRect().width){
-Android.fullScreen(true);
+Android.fullScreen(ytproFullscreenIsPortrait());
 }
-else{
-Android.fullScreen(false);
-}}
 catch{}
 
 
