@@ -1396,7 +1396,8 @@ function seekSwipeReset(){
 }
 function seekSwipeEligible(e){
   if(localStorage.getItem("ytpro_seekSwipe") != "true") return false;
-  if(holdActive) return false;
+  if(holdActive) return false;   /*2X 已生效：不进入横滑，避免两功能连串*/
+  if(holdTimer) return false;    /*长按计时中：让位于长按，纯长按不受干扰*/
   if(!(document.fullscreenElement||document.webkitFullscreenElement)) return false;
   return isHoldTarget(e); /*复用长按的目标判定：.video-stream / .player-controls-background*/
 }
