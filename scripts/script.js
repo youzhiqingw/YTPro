@@ -71,6 +71,7 @@ if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro
 if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop","false");}
 if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro_noAutoplay","true");}
 if(localStorage.getItem("ytpro_lite") == null){localStorage.setItem("ytpro_lite","false");}
+if(localStorage.getItem("ytpro_hideStyles") == null){localStorage.setItem("ytpro_hideStyles","{}");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -821,6 +822,10 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <div>后台播放 <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
 <br>
 <div>隐藏 Shorts <span data-action="sttCnf" data-value="shorts" style="${sttCnf(0,0,"shorts")}" ><b style="${sttCnf(0,1,"shorts")}" ></b></span></div> 
+<div>隐藏相关视频 <span data-action="ytproHideStyle" data-value="hide-related-videos" style="${ytproHideStyleState("hide-related-videos",0)}" ><b style="${ytproHideStyleState("hide-related-videos",1)}"></b></span></div>
+<div>隐藏片尾卡片 <span data-action="ytproHideStyle" data-value="hide-end-screens" style="${ytproHideStyleState("hide-end-screens",0)}" ><b style="${ytproHideStyleState("hide-end-screens",1)}"></b></span></div>
+<div>隐藏社区帖 <span data-action="ytproHideStyle" data-value="hide-community-posts" style="${ytproHideStyleState("hide-community-posts",0)}" ><b style="${ytproHideStyleState("hide-community-posts",1)}"></b></span></div>
+<div>隐藏 Mixes <span data-action="ytproHideStyle" data-value="hide-mix-playlist" style="${ytproHideStyleState("hide-mix-playlist",0)}" ><b style="${ytproHideStyleState("hide-mix-playlist",1)}"></b></span></div> 
 <br>
 <button data-action="disableCodecs">禁用编解码器
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
@@ -917,6 +922,13 @@ var actionsList={
   },
   block_60fps:(el)=>{
     sttCnf(el,"block_60fps");
+  },
+  ytproHideStyle:(el,key)=>{
+    ytproToggleHideStyle(key);
+    el.style.background=ytproHideStyleState(key,0);
+    el.children[0].style.background=ytproHideStyleState(key,1);
+    if(ytproHideStyleState(key,1).indexOf("left:2px") > -1){ el.children[0].style.left="2px"; el.children[0].style.right="auto"; }
+    else{ el.children[0].style.right="2px"; el.children[0].style.left="auto"; }
   }
 }
 
@@ -2775,6 +2787,66 @@ function ytproApplyLite(){
   el.textContent=":not(#movie_player):not(#movie_player *){animation-duration:0.001ms!important;transition-duration:0.001ms!important}img[src*=\"i.ytimg.com\"]:not(#movie_player):not(#movie_player *){content-visibility:auto}";
 }
 
+/*4 组内容隐藏开关（ytpro_hideStyles 存 JSON 对象）。与 Hide Shorts 独立：
+Hide Shorts 是 DOM remove，这里是 CSS display:none。选择器取 m.youtube.com 移动端
+渲染器；:has() 在老 WebView 不支持时整条规则被忽略，不影响其他规则（CSS 容错）。*/
+var YTPRO_HIDE_STYLES={
+  "hide-related-videos":{
+    label:"隐藏相关视频",
+    css:"ytm-watch-next-secondary-results-renderer,ytm-item-section-renderer[section-identifier='related-items']{display:none!important}"
+  },
+  "hide-end-screens":{
+    label:"隐藏片尾卡片（同时隐藏片尾订阅卡片）",
+    css:".ytp-ce-element,.ytp-endscreen-content,.ytp-pause-overlay{display:none!important}"
+  },
+  "hide-community-posts":{
+    label:"隐藏社区帖",
+    css:"ytm-post-renderer,ytm-backstage-post-thread-renderer,ytm-rich-section-renderer:has(ytm-post-renderer){display:none!important}"
+  },
+  "hide-mix-playlist":{
+    label:"隐藏 Mixes 播放列表",
+    css:"ytm-compact-radio-renderer,ytm-compact-playlist-renderer,ytm-rich-item-renderer:has(ytm-compact-playlist-renderer){display:none!important}"
+  }
+};
+
+function ytproHideStylesApply(){
+  var el=document.getElementById("ytpro_user_builtin");
+  var cfg={};
+  try{ cfg=JSON.parse(localStorage.getItem("ytpro_hideStyles")||"{}")||{}; }catch(e){ cfg={}; }
+  var css="";
+  for(var k in YTPRO_HIDE_STYLES){
+    if(cfg[k]===true){ css+="/*"+YTPRO_HIDE_STYLES[k].label+"*/\n"+YTPRO_HIDE_STYLES[k].css+"\n"; }
+  }
+  if(!css){ if(el){ el.remove(); } return; }
+  if(!el){ el=document.createElement("style"); el.id="ytpro_user_builtin"; (document.head||document.documentElement).appendChild(el); }
+  el.textContent=css;
+}
+
+function ytproHideStyleState(k,part){
+  /*渲染 hideStyles JSON 开关的样式：part 0=轨道, 1=圆点*/
+  var cfg={};
+  try{ cfg=JSON.parse(localStorage.getItem("ytpro_hideStyles")||"{}")||{}; }catch(e){ cfg={}; }
+  var on=(cfg[k]===true);
+  if(isD){
+    var s=["#000","#717171","#fff"];
+  }else{
+    var s=["#fff","#909090","#151515"];
+  }
+  if(part==1){ /*圆点：开=靠右白底，关=靠左*/ 
+    return on?("background:"+s[0]+";right:2px;left:auto;"):("background:"+s[0]+";left:2px;right:auto;");
+  }
+  return on?("background:"+s[2]+";"):("background:"+s[1]+";");
+}
+
+function ytproToggleHideStyle(k){
+  if(!YTPRO_HIDE_STYLES[k]) return;
+  var cfg={};
+  try{ cfg=JSON.parse(localStorage.getItem("ytpro_hideStyles")||"{}")||{}; }catch(e){ cfg={}; }
+  cfg[k]=!cfg[k];
+  localStorage.setItem("ytpro_hideStyles",JSON.stringify(cfg));
+  ytproHideStylesApply();
+}
+
 function applyAspect(){
   var v=document.getElementsByClassName('video-stream')[0];
   if(!v) return;
@@ -2840,6 +2912,9 @@ applyAspect();
 
 //lite mode style
 ytproApplyLite();
+
+//user builtin content-hiding styles
+ytproHideStylesApply();
 
 //settingsTab
 addSettingsTab();
