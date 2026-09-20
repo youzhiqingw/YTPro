@@ -9,7 +9,7 @@
 <a href="https://www.jsdelivr.com/package/npm/ytpro?tab=stats"><img alt="jsDelivr monthly hits badge" src="https://data.jsdelivr.com/v1/package/npm/ytpro/badge"></a>
 <img src=https://img.shields.io/github/downloads/youzhiqingw/YTPro/total>
 
-[English](README.md) | [中文](README.zh.md)
+[English](README.md)
 
 </div>
 
@@ -36,7 +36,6 @@
 - **广告拦截** — 屏蔽广告内容
 - **小窗播放** — 缩小窗口继续观看
 - **画中画模式** — 边用其他应用边观看
-- **手势控制** — 滑动调节音量和亮度
 - **显示点踩数** — 查看视频不喜欢数量
 - **后台播放** — 锁屏后继续播放音频
 - **收藏功能** — 无需登录即可收藏视频

@@ -1,5 +1,5 @@
 
-[English](README.md) | [中文](README.zh.md)
+[中文](README.zh.md)
 ---
 ## Features
 - **Video Downloader** — Download YouTube videos in multiple qualities
@@ -10,7 +10,6 @@
 - **Ad Blocker** — Block advertisements
 - **Minimize Video** — Continue watching in a small window
 - **Picture-in-Picture** — Watch while using other apps
-- **Gesture Control** — Swipe to adjust volume and brightness
 - **Dislike Counter** — Shows number of dislikes
 - **Background Playback** — Listen with screen off
 - **Custom Heart** — Save videos without logging in

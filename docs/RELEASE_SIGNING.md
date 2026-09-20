@@ -27,7 +27,7 @@
 
 ## 2. 本地生成签名证书（Windows）
 
-用 JDK 自带的 `keytool`（本机 `C:\Program Files\Java\jdk-17\bin` 已可用）。
+用 JDK 自带的 `keytool`。若 `keytool` 不在 PATH，用 JDK 安装目录的完整路径，例如 `C:\Program Files\Java\jdk-17\bin\keytool.exe`（JDK 17 及以上，本项目要求 JDK 17+）。
 
 在仓库目录（`D:\21186\Documents\GitHub\YTPro`）执行**这一整行**：
 
@@ -219,4 +219,4 @@ PowerShell 默认不加载当前目录的命令，需加 `.\` 前缀，运行：
 `"C:\Program Files\Java\jdk-17\bin\keytool.exe" -genkeypair ...`
 
 **Q4：忘了密钥库口令怎么办？**
-无法找回。只能删除 `ytpro-release.jks` 重新生成一个，并用新密钥重新构建（旧包需卸载重装）。
+无法找回。只能删除 `ytpro-release.jks` 重新生成一个，并用新密钥重新构建。注意：新密钥签名不同，已安装的旧包无法被覆盖升级，需先卸载重装；同时 GitHub Secrets（KEYSTORE_BASE64 等）也要更新为新密钥。

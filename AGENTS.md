@@ -1,41 +1,138 @@
 # AGENTS.md
 
-## 项目是什么
+本文件是 YTPro 二次开发的协作规范，适用于开发者和 AI 助手。内容分六部分：开发约束、开发流程、完成的定义、UI/UX 设计、参考外部项目。单个功能的方案文档格式见 `DESIGN.md`。
 
-YTPro 是一个**纯 Java Android 应用**（无 Kotlin、无原生 `.so`），用 WebView 包裹 YouTube，通过注入 JavaScript 实现去广告、后台播放、下载、截图、倍速等功能。App 本体只是壳，功能几乎全在注入的 JS 里。
+## 1. 项目概览
 
-## 工作约束（必读）
+YTPro 是纯 Java 的 Android 应用，用 WebView 加载 YouTube，通过注入 JavaScript 实现去广告、后台播放、下载、PiP、手势等功能。App 本体只是壳，**绝大部分功能在注入的 JS 里**。
 
-- **禁止重构**：不得在不改功能的前提下大改既有代码结构；优化只允许针对性微调，默认保持现有实现不动。
-- **禁止更改技术栈/依赖体系**：保持纯 Java + WebView + 注入 JS + 仅 `androidx.webkit` 的架构，不引入 Kotlin、新框架、新依赖或原生 `.so`。
-- **新增功能必须先能落地**：若某个新增功能的计划在本架构下无法真正实现（如受 WebView/API 限制、与注入链冲突），**必须拒绝用户并说明原因**，不能给出无法跑通的伪实现。
-- **UI/UX 必须与项目一致**：新增按钮/图标等可视化元素必须沿用现有注入元素的定位与事件机制，禁止引入会导致图标位置偏移或点击无效果的方案；实现前先弄清目标元素在 `scripts/script.js` 中的挂载点与现有样式约定。
-- 禁止未请求直接编译的行为，禁止自动编译，禁止自动编译。不自动上传GitHub仓库
+本 fork 面向「本地观看、性能优化、基础功能扩展」。可以参考 NouTube 等项目的思路，但只借鉴设计，不照搬实现。
 
-## 架构要点
+## 2. 开发约束
 
-- **`scripts/` 是 JS 的唯一真源**：`script.js`（主功能，约 91KB）、`bgplay.js`（后台播放）、`innertube.js`（ES module，YouTube 内部 API）。Gradle 任务 `syncYtproScripts` 在 `preBuild` 时拷贝到 `app/src/main/assets/ytpro/`——该目录是**生成产物且被 gitignore**，禁止直接改它，改 JS 一律改 `scripts/` 后重新构建。
-- **注入链**：`YTProWebViewClient.shouldInterceptRequest` 拦截 m.youtube.com/www.youtube.com 主框架 HTML，在 `<head>` 后注入 `BOOTSTRAP_JS`（建宽松 trustedTypes policy + 劫持 fetch/XHR 拦广告请求），并把 `youtube.com/ytpro_cdn/npm/ytpro@latest` 请求指向本地 assets。
-- **JS↔Java 桥**：`WebAppInterface` 以 `@JavascriptInterface` 暴露 `Android.*` 方法；靠 `app/proguard-rules.pro` 的 keep 规则在 R8 缩混淆后存活。`BinaryStreamManager` 用 androidx.webkit WebMessagePort 做二进制流。
-- 依赖极少：仅 `androidx.webkit`。
+### 2.1 技术栈与改动范围
 
-## 构建与验证（Windows）
+- 保持 Java + WebView + 注入 JS 的架构。不引入 Kotlin，不更换播放内核，不引入与 WebView 注入链冲突的框架。
+- 改动以「小而集中」为原则：优先新增独立函数或模块，不为改风格而改动无关代码。
+- 确有必要的重构（为了让新功能能落地）需要在方案里单独说明并经确认，且与功能改动分开提交。
+- 依赖能不加就不加，能纯 JS 解决的不引库。确需引入时，方案里写明：用途、现有桥接/注入为什么不够、对 APK 体积和 minSdk 的影响、许可证。
+- 参考其他项目时只借鉴思路。如需复制代码，先确认其许可证与本项目（MIT）兼容。
 
-- 构建：`.\gradlew.bat assembleRelease`（产物 `app\build\outputs\apk\release\app-release.apk`）或 `assembleDebug`。
-- 需要 JDK 17+（wrapper 为 Gradle 8.13 / AGP 8.13.2，CI 用 JDK 21 + SDK 35 + build-tools 36.1.0）。
-- **无单元测试 / 无 instrumentation 测试，无 lint/typecheck 配置**。验证方式 = 构建 + 装到模拟器/真机（本地教程见 `docs/安卓模拟器测试教程.md`，已 gitignore，勿提交）。
-- Release 签名：本地可选，读取根目录 `keystore.properties`（gitignore）；缺省则产出未签名包。CI 用 GitHub Secrets（KEYSTORE_BASE64 / STORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD）签名。
+### 2.2 代码放在哪里
 
-## 发布与约定
+- **`scripts/` 是 JS 的唯一源码**。JS 改动只改这里。
+- `app/src/main/assets/ytpro/` 是构建产物（已 gitignore），不要直接修改。
+- Java 侧改动仅限桥接（`WebAppInterface` 的 `Android.*` 接口）和必要的原生能力；新增或修改桥接接口时，同步检查 ProGuard keep 规则。
+- 涉及 `YTProWebViewClient` 的 HTML 拦截与注入、CSP、trustedTypes、fetch 劫持时，属于高风险区域，方案里要单独评估。
 
-- `.github/workflows/gradle.yml`：push 到 `main` 即构建签名 Release 并自动发 GitHub Release，tag 为 `v{versionName}-{YYYYMMDD-HHMMSS}`。
-- 发版时在 `app/build.gradle` 同时改 `versionCode` 和 `versionName`（当前 4.09 / 12），提交信息带"Bump version"。
-- 提交信息用 Conventional Commits 前缀 + 中文正文（`feat:`/`fix:`/`refactor:`/`chore:`/`i18n:`；`i18n:` 表示 UI 文案中文化）。默认只跑 `assembleRelease`，不出 debug 包。
-- **永不提交**（均已被 gitignore）：`app/src/main/assets/ytpro/`、`keystore.properties`、`*.jks`、`keystore_base64.txt`、`remote_gradle_b64.txt`，以及 `docs/` 下的本地工作笔记（wizestream-assessment / scene24_* / 倍速播放完整方案 / 模拟器测试教程）。
+### 2.3 兼容性与技术细节
 
-## 坑
+- 以 `build.gradle` 中的 `minSdk`（当前应为 21）为准。老版本 WebView 支持是本项目卖点，新 JS 代码优先使用 `var` 和 ES5 语法，避免因不支持的语法导致整个脚本加载失败。
+- `BOOTSTRAP_JS` 只能包含 ASCII 字符，且不得包含字面量 `</script>`。
+- 新增的 `localStorage` 键统一使用 `ytpro_` 前缀（如 `ytproBlocklist`），并先检查不与现有键重名。注意：现有键多数没有前缀（`hearts`、`shorts`、`autoSpn`、`bgplay` 等），新增键不要沿用这种无前缀写法，也不要假设能从「前缀」反推全部现有键。
+- 不能在当前架构下真正实现的功能（WebView 限制、跨域、与注入链冲突等），应在方案阶段明确说明并放弃，不做假按钮或空实现。
 
-- `BOOTSTRAP_JS` 必须保持 **ASCII-only 且不含字面 `</script>`**，否则内联注入会破坏 HTML。
-- 拦截器会剥掉主框架 HTML 的 CSP header/`<meta>`，所以 bootstrap 才建 trustedTypes policy——动这里要小心。
-- 兼容 minSdk 21（Android 5.0+，targetSdk 35）：老路径用 `TextUtils.join` 而非 `String.join`（`YTProWebViewClient` 里有注释）。
-- `.github/workflows/npm-publish.yml`：`scripts/package.json` 变更推 `main` 会触发 npm 发布；该文件 `repository` 目前仍指向上游 `prateek-chaubey/YTPro`。
+### 2.4 发布相关
+
+- 修改 `scripts/package.json` 前，先评估对 npm 发布链的影响。
+- 签名、CI 等以仓库现有发布文档为准。
+
+## 3. 开发流程
+
+一次改动按下面的顺序走完：
+
+```
+需求澄清 → 方案 → 确认 → 实现 → 测试与自检 → 本地编译验证 → 提交 / 推送
+```
+
+### 3.1 需求澄清与方案
+
+写代码前先出方案（格式见 `DESIGN.md`），至少回答：
+
+1. 要做什么、不做什么。
+2. 是否合理：目标场景是什么，参数和默认值有什么依据。
+3. 能否在现有架构内落地：挂在哪个节点、用什么接口、有哪些技术限制。
+4. 影响面：会碰到哪些现有功能，需要回归哪些点。
+5. 验收标准。
+
+需求描述含糊时（例如「那个齿轮」），先列出候选项让提出者确认，不要猜。
+
+**方案经确认后才开始实现。** 小改动（改文案、修不改变交互的 bug、已明确元素的微调）可以只用几句话说明影响面，不必写完整文档。
+
+### 3.2 实现
+
+- 严格按确认的方案做。实现中发现方案没覆盖的问题（新冲突、做不到），先暂停并更新方案，再继续。
+- 大功能拆成可独立验证的小步，例如：开关与存储 → 核心逻辑 → UI → 与现有模块接线。
+- 一次改动只做一件事。不相关的修改（含顺手优化）拆成单独提交。
+
+### 3.3 测试与自检
+
+- 语法检查：对改动的 JS 做语法检查。
+- 功能验证：按方案里的验收标准逐项在模拟器或真机上验证，至少覆盖首页、播放页、全屏、PiP 中与该功能相关的场景。
+- 回归：检查方案「影响面」中列出的现有功能是否仍正常（倍速、全屏按钮、PiP、Hide Shorts、SponsorBlock、设置面板、后台播放等，按实际涉及选取）。
+- 测试结果（通过项、未覆盖项、已知问题）在提交说明或回复中如实汇报。
+
+### 3.4 编译与提交
+
+- 自测通过后，再本地编译（`assembleDebug` / `assembleRelease`）做整体验证。
+- 编译、提交、推送由使用者决定何时执行。AI 助手不主动执行 `git push`，不主动发布 Release；需要编译时先询问。
+- 提交建议：一个提交只包含一件事，提交说明写清「改了什么、为什么」。较大的功能用独立分支开发，验证后再合并。
+- 出问题时，能通过 `git revert` 单独回退该功能。
+
+## 4. 完成的定义
+
+防「假完成」：每个功能在交付时必须明确处于以下四种状态之一，且在提交说明或回复中如实标注：
+
+1. **已完成已验证**：实现完成，且通过真机/模拟器验证。
+2. **已完成未验证**：实现完成，但只做过语法检查或构建，未在设备上验证。
+3. **部分完成**：只实现了部分（例如「开关与存储」完成，核心逻辑未接），需写明已完成哪些、缺哪些。
+4. **未做**：明确未开始，不做任何「已做」的暗示。
+
+正在进行的改动，若无真机验证，一律只报「已完成未验证」，不得写成「完成」。验收清单里未勾选的项，按「未做」如实列出。
+
+## 5. UI/UX 设计
+
+### 5.1 先确认改的是哪个元素
+
+界面上外观相似的元素很多（原生设置齿轮、注入设置入口、PiP 内的按钮等）。修改界面前，必须在方案中写明：
+
+- 选择器 / id、挂载节点
+- 出现的页面（首页 / 播放页 / 全屏 / PiP）
+- 是原生元素还是 YTPro 注入的元素
+
+描述不清就先列候选，请提出者确认，再动手。不修改方案外的图标和入口。
+
+### 5.2 新增按钮或手势时的冲突检查
+
+- 沿用现有挂载点和事件机制（参见 `scripts/script.js`），不要另起一套。
+- 新增按钮：确认不与原生控制条、现有 FAB（截图、更多视频等）重叠，全屏 / 非全屏 / PiP 下位置和显隐都正常，重复注入有判重。
+- 新增手势：写明触发区域（左 / 中 / 右，上 / 下，是否仅全屏）、与现有手势（亮度 / 音量竖滑、长按倍速、原生滑动）的优先级，以及谁调用 `preventDefault`。
+- 如果确实无法与现有功能共存，在方案阶段就提出取舍（二选一或降级），不要上线后再删功能。
+
+### 5.3 入口要好找
+
+- 每个功能都要有明确入口（设置项、按钮或手势），使用者应能在很短时间内找到。
+- 文案跟随现有面板的语言和风格；图标沿用现有风格（内联 SVG、统一配色），避免与其他图标混淆。
+- 有误触风险的功能，默认关闭，或限定在全屏 / 特定页面生效。
+
+### 5.4 参数以实际使用体验为准
+
+- 参数和默认值（倍速档位、手势阈值、自动隐藏时长等）要看实际使用场景，不以技术上限为准。例如倍速：技术上能调很高，但听感可用的范围和推荐默认档要单独考虑，必要时参考主流播放器的做法。
+- 方案里写出默认值及理由，默认不要打扰用户。
+
+### 5.5 失败时的处理
+
+- 选择器失效、桥接不可用、非 watch 页等情况，功能应静默降级或关闭，不影响页面其他部分。
+
+## 6. 参考外部项目
+
+迁移外部项目（如 NouTube）能力时，遵守以下规则：
+
+- **迁移的是「思路和可落地的能力」，不是无差别搬代码。** 先看懂对方做了什么、为什么这么做，再决定 YTPro 怎么实现。
+- **先评估、后开发**：评估文档放 `docs/migration/`，由使用者勾选确认后，才进入正式开发流程。未经勾选不实现。
+- **只吸收与本项目架构兼容的部分**；不能落地的，明确写「拒绝 + 原因」，不做空实现或伪按钮。
+- **没读到的内容标「待核实」**，不要当作已确认的事实写进方案，也不要凭印象补写。
+- **复制任何代码前，先核对源项目许可证**与本项目（MIT）是否兼容；许可证不兼容的只借鉴思路、不拷贝代码。
+- **与现有功能冲突时，在方案阶段就取舍**（二选一或降级），不能先做上去、事后靠删除旧功能来补救。
+
+新增的关闭开关：迁移来的功能如可能影响现有体验，应提供独立关闭开关，默认不打扰用户。

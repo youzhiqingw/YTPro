@@ -52,6 +52,7 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Create GitHub Release
+        if: github.event_name != 'pull_request'
         run: |
           VERSION=$(grep versionName app/build.gradle | head -1 | sed 's/.*versionName "\(.*\)"/\1/')
           TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
@@ -69,6 +70,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: YTPRO-release

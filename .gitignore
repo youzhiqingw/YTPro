@@ -15,6 +15,8 @@ local.properties
 .android-sdk/
 .android-userhome/
 .tmp/
+tmp/
+.pnpm-store/
 *.shot-*.png
 
 # Mimosa security scan local history
@@ -44,4 +46,13 @@ docs/上游issues整理.md
 docs/PLAN.md
 .zcode/plans/plan-sess_f90970a2-6a1b-4b7b-aed1-a6590a886273.md
 docs/与上游差异对照及改动清单.md
-AGENTS.md
+docs/noutube-integration-spec.md
+docs/NouTube功能集成Spec.md
+docs/NouTube设计扩展方案.md
+docs/RELEASE_SIGNING.md
+docs/RELEASE_SIGNING.md
+docs/RELEASE_SIGNING.md
+docs/RELEASE_SIGNING.md
+/docs
+docs/RELEASE_SIGNING.md
+docs/RELEASE_SIGNING.md
