@@ -818,30 +818,40 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 </svg>
 </button>
 <br>
-<div>自动跳过赞助片段 <span data-action="sttCnf" data-value="autoSpn" style="${sttCnf(0,0,"autoSpn")}" ><b style="${sttCnf(0,1,"autoSpn")}"></b></span></div>
-<br>
-<div>小窗手势 <span data-action="sttCnf" data-value="gesM" style="${sttCnf(0,0,"gesM")}" ><b style="${sttCnf(0,1,"gesM")}"></b></span></div>
-<br>
-<div>强制缩放 <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
-<div>长按调速 <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
-<div>倍速按钮 <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
+<!-- 播放 -->
 <div>单视频循环 <span data-action="sttCnf" data-value="ytpro_loop" style="${sttCnf(0,0,"ytpro_loop")}" ><b style="${sttCnf(0,1,"ytpro_loop")}"></b></span></div>
 <div>关闭自动播放下一个 <span data-action="sttCnf" data-value="ytpro_noAutoplay" style="${sttCnf(0,0,"ytpro_noAutoplay")}" ><b style="${sttCnf(0,1,"ytpro_noAutoplay")}"></b></span></div>
+<div>倍速按钮 <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
+<div>长按调速 <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
 <div>长按速度值 <span data-action="holdSpeedVal" style="position:absolute;right:10px;height:auto;width:auto;min-width:56px;padding:2px 12px;border-radius:14px;background:${isD ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)"};color:${isD ? "#fff" : "#151515"};font-size:1.1rem;font-weight:600;text-align:center;">${holdSpeedValue()}x</span></div>
 <br>
-<div>后台播放 <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
-<br>
+<!-- 内容过滤 -->
 <div>隐藏 Shorts <span data-action="sttCnf" data-value="shorts" style="${sttCnf(0,0,"shorts")}" ><b style="${sttCnf(0,1,"shorts")}" ></b></span></div> 
 <div>隐藏相关视频 <span data-action="ytproHideStyle" data-value="hide-related-videos" style="${ytproHideStyleState("hide-related-videos",0)}" ><b style="${ytproHideStyleState("hide-related-videos",1)}"></b></span></div>
-<div>隐藏片尾卡片 <span data-action="ytproHideStyle" data-value="hide-end-screens" style="${ytproHideStyleState("hide-end-screens",0)}" ><b style="${ytproHideStyleState("hide-end-screens",1)}"></b></span></div>
+<div>隐藏片尾卡片（同时隐藏片尾订阅卡片） <span data-action="ytproHideStyle" data-value="hide-end-screens" style="${ytproHideStyleState("hide-end-screens",0)}" ><b style="${ytproHideStyleState("hide-end-screens",1)}"></b></span></div>
 <div>隐藏社区帖 <span data-action="ytproHideStyle" data-value="hide-community-posts" style="${ytproHideStyleState("hide-community-posts",0)}" ><b style="${ytproHideStyleState("hide-community-posts",1)}"></b></span></div>
 <div>隐藏 Mixes <span data-action="ytproHideStyle" data-value="hide-mix-playlist" style="${ytproHideStyleState("hide-mix-playlist",0)}" ><b style="${ytproHideStyleState("hide-mix-playlist",1)}"></b></span></div> 
 <br>
+<!-- 画质 -->
 <button data-action="disableCodecs">禁用编解码器
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
 <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
 </svg>
 </button>
+<br>
+<div>强制缩放 <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
+<div>轻量模式 <span data-action="sttCnf" data-value="ytpro_lite" style="${sttCnf(0,0,"ytpro_lite")}" ><b style="${sttCnf(0,1,"ytpro_lite")}"></b></span></div>
+<br>
+<!-- 分享 -->
+<div>分享去追踪参数 <span data-action="sttCnf" data-value="ytpro_cleanShare" style="${sttCnf(0,0,"ytpro_cleanShare")}" ><b style="${sttCnf(0,1,"ytpro_cleanShare")}"></b></span></div>
+<br>
+<!-- 高级 -->
+<div>全屏横滑跳转 <span data-action="sttCnf" data-value="ytpro_seekSwipe" style="${sttCnf(0,0,"ytpro_seekSwipe")}" ><b style="${sttCnf(0,1,"ytpro_seekSwipe")}"></b></span></div>
+<div>自动跳过赞助片段 <span data-action="sttCnf" data-value="autoSpn" style="${sttCnf(0,0,"autoSpn")}" ><b style="${sttCnf(0,1,"autoSpn")}"></b></span></div>
+<div>小窗手势 <span data-action="sttCnf" data-value="gesM" style="${sttCnf(0,0,"gesM")}" ><b style="${sttCnf(0,1,"gesM")}"></b></span></div>
+<div>后台播放 <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
+<div>开发者模式 <span data-action="sttCnf" data-value="devMode" style="${sttCnf(0,0,"devMode")}" ><b style="${sttCnf(0,1,"devMode")}"></b></span></div>
+<div>冻结主页 <span data-action="sttCnf" data-value="freezeHome" style="${sttCnf(0,0,"freezeHome")}" ><b style="${sttCnf(0,1,"freezeHome")}" ></b></span></div>
 <br>
 <button data-action="issues">反馈问题
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${isD ? "#ccc" : "#444"}" viewBox="0 0 16 16">
@@ -855,11 +865,6 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 </svg>
 
 </button>
-<br>
-<div>开发者模式 <span data-action="sttCnf" data-value="devMode" style="${sttCnf(0,0,"devMode")}" ><b style="${sttCnf(0,1,"devMode")}"></b></span></div>
-<div>冻结主页 <span data-action="sttCnf" data-value="freezeHome" style="${sttCnf(0,0,"freezeHome")}" ><b style="${sttCnf(0,1,"freezeHome")}" ></b></span></div>
-<div>轻量模式 <span data-action="sttCnf" data-value="ytpro_lite" style="${sttCnf(0,0,"ytpro_lite")}" ><b style="${sttCnf(0,1,"ytpro_lite")}"></b></span></div>
-<div>全屏横滑跳转 <span data-action="sttCnf" data-value="ytpro_seekSwipe" style="${sttCnf(0,0,"ytpro_seekSwipe")}" ><b style="${sttCnf(0,1,"ytpro_seekSwipe")}"></b></span></div>
 <br><br>
 <p style="font-size:1.25rem;width:calc(100% - 20px);margin:auto;text-align:left"><b style="font-weight:bold">免责声明</b>：本项目为教育用途，演示如何向 WebView 注入 JavaScript 以提升使用效率。<br>
 源码见 <a href="https://www.youtube.com/redirect?q=https://github.com/prateek-chaubey/YTPRO" style="font-family:monospace;" > https://github.com/prateek-chaubey/YTPRO</a>
