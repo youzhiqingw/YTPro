@@ -45,6 +45,15 @@ const HOLD_SPEED_MAX=4;
 const HOLD_SPEED_MIN=0.25;
 const HOLD_DELAY=500;
 const HOLD_MOVE_TOL=12;
+/*seek swipe（进度条触摸区扩展 / 最小横滑版本）阈值常量，真机调整*/
+const SEEK_SWIPE_LOCK=24;      //横向位移达到该值才锁定为横滑（CSS px）
+const SEEK_SWIPE_RATIO=1.5;    //横向位移需超过纵向位移的倍数才算横滑
+const SEEK_SWIPE_FULL_DURATION=120; //整屏宽对应时长上限（秒）
+let seekSwipeActive=false;
+let seekSwipeStartX=0;
+let seekSwipeStartY=0;
+let seekSwipeTarget=0;
+let seekSwipeLocked=false;
 
 if(localStorage.getItem("gesM") == null || localStorage.getItem("bgplay") == null){
 localStorage.setItem("autoSpn","true");
@@ -72,6 +81,7 @@ if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop"
 if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro_noAutoplay","true");}
 if(localStorage.getItem("ytpro_lite") == null){localStorage.setItem("ytpro_lite","false");}
 if(localStorage.getItem("ytpro_hideStyles") == null){localStorage.setItem("ytpro_hideStyles","{}");}
+if(localStorage.getItem("ytpro_seekSwipe") == null){localStorage.setItem("ytpro_seekSwipe","false");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -849,6 +859,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <div>开发者模式 <span data-action="sttCnf" data-value="devMode" style="${sttCnf(0,0,"devMode")}" ><b style="${sttCnf(0,1,"devMode")}"></b></span></div>
 <div>冻结主页 <span data-action="sttCnf" data-value="freezeHome" style="${sttCnf(0,0,"freezeHome")}" ><b style="${sttCnf(0,1,"freezeHome")}" ></b></span></div>
 <div>轻量模式 <span data-action="sttCnf" data-value="ytpro_lite" style="${sttCnf(0,0,"ytpro_lite")}" ><b style="${sttCnf(0,1,"ytpro_lite")}"></b></span></div>
+<div>全屏横滑跳转 <span data-action="sttCnf" data-value="ytpro_seekSwipe" style="${sttCnf(0,0,"ytpro_seekSwipe")}" ><b style="${sttCnf(0,1,"ytpro_seekSwipe")}"></b></span></div>
 <br><br>
 <p style="font-size:1.25rem;width:calc(100% - 20px);margin:auto;text-align:left"><b style="font-weight:bold">免责声明</b>：本项目为教育用途，演示如何向 WebView 注入 JavaScript 以提升使用效率。<br>
 源码见 <a href="https://www.youtube.com/redirect?q=https://github.com/prateek-chaubey/YTPRO" style="font-family:monospace;" > https://github.com/prateek-chaubey/YTPRO</a>
@@ -1370,6 +1381,57 @@ document.body.addEventListener('touchend', e => {
 
 document.body.addEventListener('touchcancel', e => {
   releaseHold();
+}, { capture:true, passive:true });
+
+/*seek swipe（进度条触摸区扩展，最小横滑版）：全屏 + 单指 + 起点在视频/控制条背景上 +
+holdActive 为假。横向位移超 SEEK_SWIPE_LOCK 且横向占优才锁定，touchend 才 seek（钳制
+[0,duration-1]）。touchcancel / 第二指落下复位。第一版不做浮标。阈值是常量，真机调整。*/
+function seekSwipeReset(){
+  seekSwipeActive=false; seekSwipeLocked=false;
+}
+function seekSwipeEligible(e){
+  if(localStorage.getItem("ytpro_seekSwipe") != "true") return false;
+  if(holdActive) return false;
+  if(!(document.fullscreenElement||document.webkitFullscreenElement)) return false;
+  return isHoldTarget(e); /*复用长按的目标判定：.video-stream / .player-controls-background*/
+}
+document.body.addEventListener('touchstart', e => {
+  if(e.touches.length !== 1) return;
+  if(!seekSwipeEligible(e)) return;
+  seekSwipeActive=true; seekSwipeLocked=false;
+  var t=e.touches[0];
+  seekSwipeStartX=t.pageX; seekSwipeStartY=t.pageY;
+  var v=document.getElementsByClassName('video-stream')[0];
+  seekSwipeTarget=(v&&!isNaN(v.currentTime))?v.currentTime:0;
+}, { capture:true, passive:true });
+
+document.body.addEventListener('touchmove', e => {
+  if(!seekSwipeActive||seekSwipeLocked) return;
+  if(e.touches.length !== 1){ seekSwipeReset(); return; }
+  var t=e.touches[0];
+  var dx=t.pageX-seekSwipeStartX, dy=t.pageY-seekSwipeStartY;
+  if(Math.abs(dx)<SEEK_SWIPE_LOCK) return;
+  if(Math.abs(dx)<Math.abs(dy)*SEEK_SWIPE_RATIO){ seekSwipeReset(); return; }
+  seekSwipeLocked=true;
+  try{ e.preventDefault(); }catch(e2){} /*锁定后阻止原生横滚/进度条拖动*/
+}, { capture:true, passive:false });
+
+document.body.addEventListener('touchend', e => {
+  if(!seekSwipeActive) return;
+  var locked=seekSwipeLocked;
+  var ch=e.changedTouches[0];
+  var dx=ch? (ch.pageX-seekSwipeStartX):0;
+  seekSwipeReset();
+  if(!locked) return;
+  var v=document.getElementsByClassName('video-stream')[0];
+  if(!v||isNaN(v.duration)) return;
+  var delta=(dx/window.innerWidth)*Math.min(v.duration,SEEK_SWIPE_FULL_DURATION);
+  var t=Math.max(0,Math.min(v.duration-1, seekSwipeTarget+delta));
+  try{ v.currentTime=t; }catch(e2){}
+}, { capture:true, passive:true });
+
+document.body.addEventListener('touchcancel', e => {
+  seekSwipeReset();
 }, { capture:true, passive:true });
 
 navigation.addEventListener("navigate", e => {
