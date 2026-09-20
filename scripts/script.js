@@ -68,6 +68,7 @@ localStorage.setItem(x,"true");
 if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","true");}
 if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
 if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro_cleanShare","true");}
+if(localStorage.getItem("ytpro_loop") == null){localStorage.setItem("ytpro_loop","false");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -811,6 +812,7 @@ ytpSetI.innerHTML+=`<br><b style='font-size:18px' >YT PRO Settings</b>
 <div>强制缩放 <span data-action="sttCnf" data-value="fzoom"  style="${sttCnf(0,0,"fzoom")}" ><b style="${sttCnf(0,1,"fzoom")}" ></b></span></div> 
 <div>长按调速 <span data-action="sttCnf" data-value="holdSpeed" style="${sttCnf(0,0,"holdSpeed")}" ><b style="${sttCnf(0,1,"holdSpeed")}"></b></span></div>
 <div>倍速按钮 <span data-action="sttCnf" data-value="ytproSpeedBtn" style="${sttCnf(0,0,"ytproSpeedBtn")}" ><b style="${sttCnf(0,1,"ytproSpeedBtn")}"></b></span></div>
+<div>单视频循环 <span data-action="sttCnf" data-value="ytpro_loop" style="${sttCnf(0,0,"ytpro_loop")}" ><b style="${sttCnf(0,1,"ytpro_loop")}"></b></span></div>
 <div>长按速度值 <span data-action="holdSpeedVal" style="position:absolute;right:10px;height:auto;width:auto;min-width:56px;padding:2px 12px;border-radius:14px;background:${isD ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.08)"};color:${isD ? "#fff" : "#151515"};font-size:1.1rem;font-weight:600;text-align:center;">${holdSpeedValue()}x</span></div>
 <br>
 <div>后台播放 <span data-action="sttCnf" data-value="bgplay" style="${sttCnf(0,0,"bgplay")}" ><b style="${sttCnf(0,1,"bgplay")}" ></b></span></div> 
@@ -1023,6 +1025,10 @@ x.children[0].style.background=s[0];
 
 if(z == "freezeHome"){
   if(localStorage.getItem("freezeHome") == "false"){ ytproClearHomeSnapshot(); }
+}
+
+if(z == "ytpro_loop"){
+  try{ var v=document.getElementsByClassName('video-stream')[0]; if(v){ v.loop = (localStorage.getItem("ytpro_loop")=="true"); } }catch(e){}
 }
 
 if(z == "ytproSpeedBtn"){
@@ -1282,6 +1288,7 @@ function bindSpeedWatch(video){
   });
   video.addEventListener("loadeddata",function(){
     YTProSpeed.ensureVideoReset(video);
+    try{ video.loop = (localStorage.getItem("ytpro_loop")=="true"); }catch(e){}
   });
 }
 
