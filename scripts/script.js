@@ -67,6 +67,7 @@ localStorage.setItem(x,"true");
 }
 if(localStorage.getItem("holdSpeed") == null){localStorage.setItem("holdSpeed","true");}
 if(localStorage.getItem("ytproSpeedBtn") == null){localStorage.setItem("ytproSpeedBtn","true");}
+if(localStorage.getItem("ytpro_cleanShare") == null){localStorage.setItem("ytpro_cleanShare","true");}
 if(localStorage.getItem("fzoom") == "true"){
 document.getElementsByName("viewport")[0].setAttribute("content","");
 }
@@ -1595,7 +1596,14 @@ function ytproCurrentTitle(){
   }catch(e){ return ""; }
 }
 function ytproCanonUrl(){
-  return window.location.href.replace("m.youtube.com","www.youtube.com");
+  var u=window.location.href.replace("m.youtube.com","www.youtube.com");
+  if(localStorage.getItem("ytpro_cleanShare") != "true"){ return u; }
+  try{
+    var url=new URL(u);
+    var p=url.searchParams;
+    ["si","pp","feature","src_vid","list"].forEach(function(k){ p.delete(k); });
+    return url.toString();
+  }catch(e){ return u; }
 }
 function ytproShareText(){
   return ytproCurrentTitle()+"\n"+ytproCanonUrl();
