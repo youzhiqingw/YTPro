@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.16";
+var YTProVer="4.17";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -2617,17 +2617,14 @@ container) so the gear lands where CC used to be, per the agreed layout.
 Clicking the pill opens a single horizontal strip of presets right below it;
 one tap applies - no nested dialogs. Nothing is ever appended to
 .ytwVariableSpeedControllerViewModelButtonContainer (that crowded YouTube's
-own speed sheet and clipped its preset numbers).
-Screenshot: round button inside the native control bar (sibling of
-CC/settings/autoplay, like the speed pill), shown/hidden by YouTube's own
-ytp-autohide chrome CSS, only on /watch.*/
+own speed sheet and clipped its preset numbers).*/
 
 function ytproPlayerEl(){
   return document.getElementById("movie_player") || document.querySelector(".html5-video-player");
 }
 
 function ytproRemoveSpeedControls(){
-  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn"].forEach(function(id){
+  ["ytproSpeedPill","ytproSpeedPanel"].forEach(function(id){
     var el=document.getElementById(id);
     if(el){ el.remove(); }
   });
@@ -2653,43 +2650,6 @@ function bindAutohideWatch(player){
     }
   });
   ytproAutohideObs.observe(player,{attributes:true,attributeFilter:["class"]});
-}
-
-function injectShotButton(){
-  /*Screenshot button lives inside the native control bar (sibling of
-  CC/settings/autoplay, same slot pattern as the speed pill), so YouTube's
-  own ytp-autohide chrome CSS shows/hides it together with those buttons.
-  The old standalone-overlay + custom opacity observer design failed to
-  re-show on tap (its autohide state diverged from the real controls).*/
-  var gear=document.querySelector(".ytp-settings-button");
-  var cc=document.querySelector(".ytp-subtitles-button");
-  var auto=document.querySelector(".ytp-autonav-toggle-button");
-  var anchor=auto||cc||gear;
-  if(!anchor || !anchor.isConnected){ return; } /*controls hidden right now; the MutationObserver driver retries*/
-  var host=anchor.parentElement;
-  if(!host){ return; }
-  var shot=document.getElementById("ytproShotBtn");
-  if(shot && (!shot.isConnected || shot.parentElement!==host)){ shot.remove(); shot=null; }
-  if(!shot){
-    shot=document.createElement("div");
-    shot.id="ytproShotBtn";
-    shot.title="Screenshot";
-    shot.setAttribute("style","display:flex;align-items:center;justify-content:center;width:40px;height:40px;color:#fff;pointer-events:auto;cursor:pointer;text-shadow:0 0 2px rgba(0,0,0,.5);");
-    shot.innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
-    shot.addEventListener("click",function(e){
-      e.stopPropagation();
-      ytproScreenshot();
-    });
-    shot.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
-  }
-  /*Place next to the speed pill if present, otherwise right before the
-  native anchor. Re-insert only when the parent or neighbour changes so
-  re-injection by the MutationObserver driver never churns the DOM.*/
-  var pill=document.getElementById("ytproSpeedPill");
-  var before=(pill && pill.isConnected && pill.parentElement===host)?pill:anchor;
-  if(shot.parentElement!==host || shot.nextElementSibling!==before){
-    host.insertBefore(shot,before);
-  }
 }
 
 function buildSpeedStrip(){
@@ -2760,8 +2720,6 @@ function injectSpeedControls(){
   var player=ytproPlayerEl();
   if(player){ bindAutohideWatch(player); }
 
-  injectShotButton();
-
   if(localStorage.getItem("ytproSpeedBtn") == "false"){
     ytproRemoveSpeedPill();
     return;
@@ -2808,87 +2766,6 @@ function injectSpeedControls(){
     var player=ytproPlayerEl();
     if(!pill.isConnected || (player && player.classList.contains("ytp-autohide"))){ panel.remove(); }
   }
-}
-
-/*One-tap HD screenshot (Canvas 方案)：把当前帧按视频原始分辨率画进 canvas，
-用 toBlob 异步编码（FileReader 转 base64），交给 Android 端存入系统相册
-Pictures/YTPro。YouTube 是 MSE 同源 blob 流，drawImage 不会污染画布；
-因此不做 crossOrigin 处理（那样反而会中断播放）。*/
-function ytproScreenshotFail(msg){
-  try{
-    Android.showToast(localStorage.getItem("devMode")=="true" ? ("截图失败："+msg) : "截图失败，可到设置开启开发者模式查看原因");
-  }catch(err){}
-}
-
-function ytproCanvasToBase64(canvas,ok,fail){
-  var fromDataUrl=function(dataUrl){
-    var i=dataUrl.indexOf(",");
-    ok(i>-1 ? dataUrl.slice(i+1) : dataUrl);
-  };
-  try{
-    if(typeof canvas.toBlob === "function"){
-      canvas.toBlob(function(blob){
-        if(!blob){ fail("toBlob 返回空"); return; }
-        try{
-          var reader=new FileReader();
-          reader.onload=function(){ fromDataUrl(reader.result); };
-          reader.onerror=function(){ fail("FileReader 读取失败"); };
-          reader.readAsDataURL(blob);
-        }catch(e){ fail(e&&e.message?e.message:"FileReader 异常"); }
-      },"image/jpeg",0.95);
-      return;
-    }
-  }catch(e){ /*toBlob 不可用或抛错：走 toDataURL 兜底*/ }
-  try{
-    fromDataUrl(canvas.toDataURL("image/jpeg",0.95));
-  }catch(e){
-    fail(e && e.name==="SecurityError" ? "画布被跨域污染(SecurityError)" : (e&&e.message?e.message:"toDataURL 失败"));
-  }
-}
-
-function ytproScreenshot(){
-  var v=document.querySelector(".video-stream");
-  if(!v || !v.videoWidth || !v.videoHeight || v.readyState < 2){
-    try{ Android.showToast("视频未就绪，播放片刻后再试"); }catch(err){}
-    return;
-  }
-  try{
-    var canvas=document.createElement("canvas");
-    canvas.width=v.videoWidth;
-    canvas.height=v.videoHeight;
-    canvas.getContext("2d").drawImage(v,0,0,canvas.width,canvas.height);
-
-    ytproCanvasToBase64(canvas,function(b64){
-      try{
-        var d=new Date();
-        function p(n){ return (n<10?"0":"")+n; }
-        var id="";
-        try{ id=String(ytproWatchId()).replace(/[^a-zA-Z0-9_-]/g,"").slice(0,24); }catch(e){ id=""; }
-        if(!id){ id="shot"; }
-        var name="YTPro_"+id+"_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+".jpg";
-        if(typeof Android!=="undefined" && typeof Android.saveScreenshot==="function"){
-          Android.saveScreenshot(name,b64);
-          ytproFlash();
-        }else{
-          ytproScreenshotFail("saveScreenshot 桥接不可用，请更新到最新版");
-        }
-      }catch(err){ ytproScreenshotFail(err&&err.message?err.message:"保存异常"); }
-    },ytproScreenshotFail);
-  }catch(err){
-    ytproScreenshotFail(err&&err.message?err.message:"截图异常");
-  }
-}
-
-function ytproFlash(){
-  /*fullscreen paints only the fullscreenElement subtree (#movie_player), so
-  the flash must live inside it or it is invisible during fullscreen shots*/
-  var host=document.fullscreenElement||document.webkitFullscreenElement||document.getElementById("player-container-id");
-  if(!host){ return; }
-  var f=document.createElement("div");
-  f.setAttribute("style","position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;opacity:.85;z-index:2147483646;pointer-events:none;transition:opacity .18s ease-out;");
-  host.appendChild(f);
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.style.opacity="0"; }); });
-  setTimeout(function(){ f.remove(); },260);
 }
 
 
@@ -3085,7 +2962,7 @@ function hidePipInjected(){
     }
     return;
   }
-  ["ytproSpeedPill","ytproSpeedPanel","ytproShotBtn","ytproFullFabs"].forEach(function(id){
+  ["ytproSpeedPill","ytproSpeedPanel","ytproFullFabs"].forEach(function(id){
     var el=document.getElementById(id);
     if(el){ el.remove(); }
   });
@@ -3094,7 +2971,6 @@ function hidePipInjected(){
 }
 
 var YTPRO_MORE_SVG=`<svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 24 24" width="22" fill="#fff"><path d="M4 6h2v2H4V6zm0 5h2v2H4v-2zm0 5h2v2H4v-2zm16-8v2H8V8h12zm0 5v2H8v-2h12zm0 5v2H8v-2h12z"/></svg>`;
-var YTPRO_SHOT_SVG=`<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="#fff"><path d="M12,15.2A3.2,3.2 0 1,0 8.8,12A3.2,3.2 0 0,0 12,15.2M9,2L7.17,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4H16.83L15,2M12,17A5,5 0 1,1 17,12A5,5 0 0,1 12,17Z"></path></svg>`;
 
 function ytproFabsHost(){
   var h=document.getElementById("ytproFullFabs");
@@ -3117,14 +2993,6 @@ function ytproFab(svg,title,cb){
   d.addEventListener("click",function(e){ e.stopPropagation(); cb(); });
   d.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true});
   return d;
-}
-
-function injectShotFAB(){
-  var host=ytproFabsHost();
-  if(document.getElementById("ytproShotFAB")){ return; }
-  var s=ytproFab(YTPRO_SHOT_SVG,"截图（保存到相册）",function(){ ytproScreenshot(); });
-  s.id="ytproShotFAB";
-  host.appendChild(s);
 }
 
 function openMoreVideos(){
@@ -3156,7 +3024,6 @@ function ytproFabsSync(){
   if(typeof window.isPIP!=="undefined" && window.isPIP){ if(host){ host.remove(); } return; }
   var fs=!!(document.fullscreenElement||document.webkitFullscreenElement);
   if(!fs){ if(host && host.parentNode){ host.remove(); } return; }
-  injectShotFAB();
   injectMoreVidButton();
   var player=ytproPlayerEl();
   var hide=!!(player && player.classList && player.classList.contains("ytp-autohide"));
