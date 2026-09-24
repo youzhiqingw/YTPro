@@ -4,7 +4,6 @@ package com.google.android.youtube.pro.receivers;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 
 public class NotificationActionReceiver extends BroadcastReceiver {
     @Override

@@ -9,7 +9,4 @@
                 <item name="android:windowTranslucentStatus">false</item>
 		<item name="android:windowLightStatusBar">false</item>
 	</style>
-	<style name="NoStatusBar" parent="AppTheme">
-		<item name="android:windowFullscreen">true</item>
-	</style>
 </resources>

@@ -27,16 +27,14 @@ import com.google.android.youtube.pro.utils.MediaMuxerUtils;
 
 public class WebAppInterface {
 	private final MainActivity activity;
-	private final YTProWebView web;
 	
 	private String icon = "";
 	private String title = "";
 	private String subtitle = "";
 	private long duration;
 	
-	public WebAppInterface(MainActivity activity, YTProWebView web) {
+	public WebAppInterface(MainActivity activity) {
 		this.activity = activity;
-		this.web = web;
 	}
 	
 	@JavascriptInterface

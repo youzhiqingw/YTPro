@@ -24,11 +24,9 @@ import javax.net.ssl.HttpsURLConnection;
 public class YTProWebViewClient extends WebViewClient {
 
     private final MainActivity activity;
-    private final YTProWebView web;
 
-    public YTProWebViewClient(MainActivity activity, YTProWebView web) {
+    public YTProWebViewClient(MainActivity activity) {
         this.activity = activity;
-        this.web = web;
     }
 
     /**

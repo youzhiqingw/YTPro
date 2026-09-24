@@ -76,6 +76,7 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        settings.setTextZoom(100); // 屏蔽系统字体缩放，防 H5 排版错乱
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -106,10 +107,10 @@ public class MainActivity extends Activity {
             }
         }
 
-        web.addJavascriptInterface(new WebAppInterface(this, web), "Android");
+        web.addJavascriptInterface(new WebAppInterface(this), "Android");
         chromeClient = new YTProWebChromeClient(this, web);
         web.setWebChromeClient(chromeClient);
-        web.setWebViewClient(new YTProWebViewClient(this, web));
+        web.setWebViewClient(new YTProWebViewClient(this));
 
         web.loadUrl(url);
 

@@ -1528,6 +1528,9 @@ window.addEventListener("yt-navigate-finish", function(){
   /*控制条渲染可能晚于导航完成事件，稍后重试（__ytproNoAutoplayDone 保证每页只干预一次）*/
   setTimeout(ytproNoAutoplay, 500);
   setTimeout(ytproNoAutoplay, 1500);
+  /*新视频加载后重应用用户选定的画面比例，防 object-fit 设置丢失*/
+  setTimeout(applyAspect, 300);
+  setTimeout(applyAspect, 1200);
 });
 window.addEventListener("yt-navigate-start", function(){
   window.__ytproNoAutoplayDone=false; /*每个新页面会话重置干预标记*/

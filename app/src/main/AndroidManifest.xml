@@ -27,6 +27,7 @@
 			android:name=".MainActivity"
 			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
 			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize"
 			android:supportsPictureInPicture="true"
 		        android:theme="@style/AppTheme"
                         android:exported="true"

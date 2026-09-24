@@ -52,6 +52,12 @@ dependencies {
     // streaming (the native android.webkit.WebMessage does not expose the
     // binary ArrayBuffer API publicly). Lightweight and framework-maintained.
     implementation 'androidx.webkit:webkit:1.12.0'
+
+    // Unit tests for bridge-layer sanitization logic (e.g. safeFileName).
+    // JUnit 4 + the local JVM test source set keeps these independent of a
+    // device/emulator — the methods under test are pure static functions with
+    // no Android runtime dependency.
+    testImplementation 'junit:junit:4.13.2'
 }
 
 // ---------------------------------------------------------------------------
