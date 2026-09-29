@@ -17,8 +17,8 @@ android {
         applicationId "com.google.android.youtube.pro"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 20
-        versionName "4.17"
+        versionCode 21
+        versionName "4.18"
     }
 
     signingConfigs {
