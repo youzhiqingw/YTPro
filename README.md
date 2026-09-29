@@ -15,6 +15,7 @@
 - **Codec Toggle** — Enable/disable media codecs
 - **Sponsor Skip** — Automatically skip sponsored segments
 - **Force Zoom** — Pinch to zoom any video
+- **Brightness/Volume Gesture** — Swipe up/down on the left/right edge of the video in fullscreen
 - **Hide Shorts** — Remove Shorts from your feed
 - **Playback Speed** — Up to 10x video speed
 - **Minimal Size** — Lightweight APK footprint

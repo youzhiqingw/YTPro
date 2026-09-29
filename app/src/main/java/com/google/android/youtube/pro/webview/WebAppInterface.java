@@ -7,8 +7,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.net.Uri;
+import android.provider.Settings;
 import android.util.Rational;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
@@ -27,7 +30,10 @@ import com.google.android.youtube.pro.utils.MediaMuxerUtils;
 
 public class WebAppInterface {
 	private final MainActivity activity;
-	
+	//Used by the fullscreen brightness/volume swipe gesture (script.js v4):
+	//volume rides the media (STREAM_MUSIC) stream, brightness only overrides
+	//the window's screenBrightness (no WRITE_SETTINGS permission needed).
+	private final AudioManager audioManager;
 	private String icon = "";
 	private String title = "";
 	private String subtitle = "";
@@ -35,6 +41,7 @@ public class WebAppInterface {
 	
 	public WebAppInterface(MainActivity activity) {
 		this.activity = activity;
+		this.audioManager = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
 	}
 	
 	@JavascriptInterface
@@ -55,9 +62,22 @@ public class WebAppInterface {
 		DownloadUtils.downloadFile(activity, name, url, m);
 	}
 
-	//Hand the download off to YTDLnis (com.deniscerri.ytdl) via ACTION_SEND;
-	//the built-in downloader stays unused from the UI. If YTDLnis is not
-	//installed, fall back to the system chooser so any downloader can be picked.
+	//True when a third-party downloader (YTDLnis, com.deniscerri.ytdl) is installed.
+	//JS calls this first: third-party present -> sendToDownloader(); absent ->
+	//open the built-in download panel via the #download hash route.
+	@JavascriptInterface
+	public boolean hasThirdPartyDownloader() {
+		try {
+			activity.getPackageManager().getPackageInfo("com.deniscerri.ytdl", 0);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	//Hand the download off to YTDLnis (com.deniscerri.ytdl) via ACTION_SEND.
+	//Presence is normally pre-checked by the JS side via hasThirdPartyDownloader();
+	//if the package disappeared in between, just toast - no system chooser fallback.
 	@JavascriptInterface
 	public void sendToDownloader(String url) {
 		activity.runOnUiThread(() -> {
@@ -65,21 +85,53 @@ public class WebAppInterface {
 				Intent send = new Intent(Intent.ACTION_SEND);
 				send.setType("text/plain");
 				send.putExtra(Intent.EXTRA_TEXT, url);
-				try {
-					send.setPackage("com.deniscerri.ytdl");
-					activity.startActivity(send);
-				} catch (Exception e) {
-					Intent open = new Intent(Intent.ACTION_SEND);
-					open.setType("text/plain");
-					open.putExtra(Intent.EXTRA_TEXT, url);
-					activity.startActivity(Intent.createChooser(open, "Download with"));
-				}
+				send.setPackage("com.deniscerri.ytdl");
+				activity.startActivity(send);
 			} catch (Exception e) {
 				Toast.makeText(activity.getApplicationContext(), "No downloader available", Toast.LENGTH_SHORT).show();
 			}
 		});
 	}
-	
+
+	//Restored for the fullscreen brightness/volume swipe gesture (2026-09-29,
+	//same implementation as before the 0349988 dead-code cleanup). Note:
+	//setBrightness only overrides THIS window's brightness, it does not touch
+	//the system setting - so JS caches the last gesture value itself instead
+	//of trusting getBrightness() for continuity between gestures.
+	@JavascriptInterface
+	public float getVolume() {
+		int currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		return (float) currentVolume / maxVolume;
+	}
+
+	@JavascriptInterface
+	public void setVolume(float volume) {
+		int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+		audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (int) (max * volume), 0);
+	}
+
+	//Returns the SYSTEM brightness as 0-100; JS divides by 100.
+	@JavascriptInterface
+	public float getBrightness() {
+		try {
+			return (Settings.System.getInt(activity.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS) / 255f) * 100f;
+		} catch (Settings.SettingNotFoundException e) {
+			return 50f;
+		}
+	}
+
+	//brightnessValue is a 0-1 window-relative brightness.
+	@JavascriptInterface
+	public void setBrightness(final float brightnessValue) {
+		activity.runOnUiThread(() -> {
+			float brightness = Math.max(0f, Math.min(brightnessValue, 1f));
+			WindowManager.LayoutParams layout = activity.getWindow().getAttributes();
+			layout.screenBrightness = brightness;
+			activity.getWindow().setAttributes(layout);
+		});
+	}
+
 	@JavascriptInterface
 	public void copyLink(String text) {
 		activity.runOnUiThread(() -> {
