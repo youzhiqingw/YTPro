@@ -22,7 +22,7 @@
 - **Auto Update** — Built-in app updater
 ## Opening YTPro settings
 
-Open the **You** page and tap the **YT PRO Settings** row below the Premium row to open the YTPro settings panel. If your account does not show a Premium row, the entry falls back to the first settings row on that page.
+Open the **You** page and tap the **YT PRO Settings** row below the Premium row to open the YTPro settings panel. If your account does not show a Premium row, the entry falls back to the first settings row on that page. A **YT PRO Settings** row is also always pinned at the top of the Library page, signed in or not.
 
 ## Credits
 - [SponsorBlock](https://github.com/ajayyy/SponsorBlock)

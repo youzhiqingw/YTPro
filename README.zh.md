@@ -40,7 +40,7 @@
 
 ## 设置入口
 
-打开「我的」页，点 Premium 行下方的 **YT PRO Settings** 行，打开 YTPro 设置面板。若当前账号看不到 Premium 行，入口会自动退化为该页第一个设置行。
+打开「我的」页，点 Premium 行下方的 **YT PRO Settings** 行，打开 YTPro 设置面板。若当前账号看不到 Premium 行，入口会自动退化为该页第一个设置行；媒体库页顶部还会固定出现一条 **YT PRO Settings** 入口行（无论是否登录账号，均可由此进入）。
 
 ## 致谢
 

@@ -428,6 +428,41 @@ var injectYtproSettingsEntry=(function(){
     }catch(e){}
     return null;
   }
+  /* 第三级兜底：未登录时 mweb 没有账号页——「我」标签打开的是媒体库页
+     /feed/library，该页既没有 Premium 行也没有任何可克隆的账号行
+     （ytm-account-item / ytm-settings-row / ytm-composite-link 实测全为 0，
+     2026-09-29 移动 UA 验证）。此时自建一行原生风格「YT PRO Settings」入口，
+     插到媒体库内容容器顶部；配色走 YouTube 自身的 --yt-spec-* 变量，深浅色
+     自适应。点击仍复用 #settings hash 路由打开现有面板，不新建打开链路。*/
+  function buildLibraryRow(){
+    try{
+      /*browser-sim 隔离（用户要求 2026-09-29）：模拟桩 bridge-stub.js 设置
+        window.__YTPRO_BROWSER_SIM，真实 App 没有这个标志。「媒体库页顶部」兜底
+        只服务真实环境未登录用户；模拟环境不渲染，避免按模拟形态评估真实界面。*/
+      if(window.__YTPRO_BROWSER_SIM){ return; }
+      var p=window.location.pathname||"";
+      if(p.indexOf("/feed/library")<0 && p.indexOf("/feed/you")<0){ return; }
+      var host=document.querySelector("ytm-single-column-browse-results-renderer");
+      if(!host || !host.isConnected){ return; }
+      var row=document.createElement("div");
+      row.setAttribute("id","ytproSettingsEntry");
+      row.setAttribute("data-ytpro-fallback","1");
+      row.setAttribute("role","button");
+      row.setAttribute("tabindex","0");
+      row.setAttribute("aria-label","YT PRO Settings");
+      row.setAttribute("style","display:flex;align-items:center;gap:16px;margin:12px 12px 0 12px;padding:14px 16px;border-radius:12px;background:var(--yt-spec-general-background-b,var(--yt-spec-base-background,#0f0f0f));color:var(--yt-spec-text-primary,#f1f1f1);font-size:1rem;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;");
+      var ico='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" style="flex:0 0 22px;opacity:.9"><path fill="currentColor" d="M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94 0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94l-0.36,-2.54c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41l-0.36,2.54c-0.59,0.24 -1.13,0.57 -1.62,0.94l-2.39,-0.96c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87c-0.12,0.21 -0.08,0.47 0.12,0.61l2.03,1.58c-0.05,0.3 -0.09,0.63 -0.09,0.94s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61l-2.01,-1.58zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6 3.6,1.62 3.6,3.6 -1.62,3.6 -3.6,3.6z"/></svg>';
+      var chev='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" style="flex:0 0 22px;margin-left:auto;opacity:.6"><path fill="currentColor" d="M10,6L8.59,7.41 13.17,12l-4.58,4.59L10,18l6,-6z"/></svg>';
+      row.innerHTML='<span style="display:flex;align-items:center">'+ico+'</span><span>YT PRO Settings</span>'+chev;
+      row.addEventListener("click",function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.hash="settings";
+      },{capture:true});
+      row.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true,capture:true});
+      host.insertBefore(row,host.firstChild);
+    }catch(e){}
+  }
   return function(){
     var existing=document.getElementById("ytproSettingsEntry");
     if(existing && existing.isConnected){
@@ -444,7 +479,11 @@ var injectYtproSettingsEntry=(function(){
     if(!prem){
       prem=findFallbackRow();
       useFallback=true;
-      if(!prem){ return; } /* not on the account page at all */
+      if(!prem){
+        /* 第三级兜底：未登录的媒体库页自建行；不在媒体库页时保持静默返回 */
+        buildLibraryRow();
+        return;
+      }
     }
     if(!prem.parentNode){ return; }
     var item=prem.cloneNode(true);
