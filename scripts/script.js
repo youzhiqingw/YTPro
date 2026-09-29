@@ -387,6 +387,11 @@ var injectYtproSettingsEntry=(function(){
      with YouTube's own settings. Never resurrect that gear.
      Tapping this row reuses the existing #settings hash route -> ytproSettings(). */
   var SEL='a, ytm-composite-link, ytm-settings-row, ytm-account-item, [role="link"], [role="listitem"], li';
+  /* 兜底专用选择器：只取「我的」页账号菜单专属元素。裸 a/li 会命中首页底部
+     导航、顶栏链接、chips 等任意原生元素；本函数又被主 observer 在每个页面
+     反复调用，宽选择器曾把克隆行反复插进原生容器，造成页面级 DOM 抖动
+     （2026-09-29 真机回归根因）。因此兜底绝不允许用宽选择器。*/
+  var FBSEL='ytm-account-item, ytm-settings-row, ytm-composite-link';
   function findPremiumRow(){
     try{
       var nodes=document.querySelectorAll(SEL);
@@ -405,7 +410,7 @@ var injectYtproSettingsEntry=(function(){
      入口。要求同一父节点下至少有两个同类行，避免误克隆内容卡片或长区块。*/
   function findFallbackRow(){
     try{
-      var nodes=document.querySelectorAll(SEL);
+      var nodes=document.querySelectorAll(FBSEL);
       for(var i=0;i<nodes.length;i++){
         var el=nodes[i];
         if(!el.isConnected || !el.parentNode){ continue; }
@@ -415,7 +420,7 @@ var injectYtproSettingsEntry=(function(){
         var sibs=el.parentNode.children;
         var same=0;
         for(var j=0;j<sibs.length;j++){
-          if(sibs[j].matches && sibs[j].matches(SEL)){ same++; }
+          if(sibs[j].matches && sibs[j].matches(FBSEL)){ same++; }
         }
         if(same<2){ continue; }
         return el;
@@ -426,8 +431,12 @@ var injectYtproSettingsEntry=(function(){
   return function(){
     var existing=document.getElementById("ytproSettingsEntry");
     if(existing && existing.isConnected){
-      /* already injected; re-inject only if detached (Premium row was rebuilt) */
-      if(existing.previousSibling && existing.previousSibling.isConnected){ return; }
+      /* already injected; re-inject only if detached (Premium row was rebuilt).
+         兜底路径插入的是父节点 firstChild，previousSibling 恒为 null，不能复用
+         下面的判据——否则每轮 observer 都会「删除重插」，形成无限 DOM 抖动。
+         兜底节点只要仍连在文档里就视为注入完成。*/
+      if(existing.getAttribute("data-ytpro-fallback")=="1" ||
+         (existing.previousSibling && existing.previousSibling.isConnected)){ return; }
       try{ existing.remove(); }catch(e){}
     }
     var prem=findPremiumRow();
@@ -463,7 +472,10 @@ var injectYtproSettingsEntry=(function(){
       window.location.hash="settings";
     },{capture:true});
     item.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true,capture:true});
-    if(useFallback){ prem.parentNode.insertBefore(item, prem.parentNode.firstChild); }
+    if(useFallback){
+      item.setAttribute("data-ytpro-fallback","1");
+      prem.parentNode.insertBefore(item, prem.parentNode.firstChild);
+    }
     else{ prem.parentNode.insertBefore(item, prem.nextSibling); }
   };
 })();
