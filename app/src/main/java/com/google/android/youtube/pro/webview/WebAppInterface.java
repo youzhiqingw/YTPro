@@ -190,6 +190,14 @@ public class WebAppInterface {
 	public void setBgPlay(boolean bgplay) {
 		activity.getSharedPreferences("YTPRO", Context.MODE_PRIVATE).edit().putBoolean("bgplay", bgplay).apply();
 	}
+
+	// 读回后台播放开关的原生值。JS 侧 localStorage 与这里是双存储，清过 WebView
+	// 数据后可能不一致，启动时由注入脚本用本方法的返回值覆盖 localStorage。
+	// 默认值与 MainActivity.onCreate 的补写值保持一致（true）。
+	@JavascriptInterface
+	public boolean getBgPlay() {
+		return activity.getSharedPreferences("YTPRO", Context.MODE_PRIVATE).getBoolean("bgplay", true);
+	}
 	
 	@JavascriptInterface
 	public void bgStart(String iconn, String titlen, String subtitlen, long dura) {

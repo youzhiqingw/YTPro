@@ -81,9 +81,19 @@ if(localStorage.getItem("ytpro_noAutoplay") == null){localStorage.setItem("ytpro
 if(localStorage.getItem("ytpro_lite") == null){localStorage.setItem("ytpro_lite","false");}
 if(localStorage.getItem("ytpro_hideStyles") == null){localStorage.setItem("ytpro_hideStyles","{}");}
 if(localStorage.getItem("ytpro_seekSwipe") == null){localStorage.setItem("ytpro_seekSwipe","false");}
+/*viewport 统一走 ytproApplyViewport()（已判空 + 缓存 meta）；启动时仍只处理
+fzoom 开启这一支，避免给默认关闭的用户改动初始 viewport 行为*/
 if(localStorage.getItem("fzoom") == "true"){
-document.getElementsByName("viewport")[0].setAttribute("content","");
+ytproApplyViewport();
 }
+
+/*bgplay 的权威值在原生 SharedPreferences：MainActivity.onCreate 会在缺失时补 true，
+YTProWebView.onWindowVisibilityChanged 读它决定是否转发可见性变化。清过 WebView 数据时
+localStorage 会回到默认值，可能与原生不一致，所以启动时用原生值覆盖 JS 侧（2026-09-29 方案）。
+桥接不可用（非 App 环境、旧 APK 无此方法）时静默跳过，保持 localStorage 原值。*/
+try{
+localStorage.setItem("bgplay",Android.getBgPlay()?"true":"false");
+}catch(e){}
 
 // Freeze Homepage: when ON, returning to home does not re-fetch/re-rank the
 // feed because the first home browse response is cached in memory only (not
@@ -147,11 +157,28 @@ function ytproIsHomePath(){
   if(!p||p=="/"){ return true; }
   return ["/watch","/shorts","/results","/playlist","/channel","/account","/settings","/feed"].every(function(k){ return p.indexOf(k)<0; });
 }
-document.body.addEventListener("touchmove",function(){
-  if(localStorage.getItem("freezeHome")=="true" && freezeHomeCache!=null && ytproIsHomePath()){
-    freezeHomeCache=null;
+var touchStartY = 0;
+var isRefreshGesture = false;
+
+document.body.addEventListener("touchstart", function(e) {
+  if(localStorage.getItem("freezeHome")!="true") return;
+  touchStartY = e.touches[0].clientY;
+  isRefreshGesture = false;
+}, {passive: true});
+
+document.body.addEventListener("touchmove", function(e) {
+  if(localStorage.getItem("freezeHome")!="true" || !freezeHomeCache) return;
+  if(!ytproIsHomePath()) return;
+  
+  var currentY = e.touches[0].clientY;
+  var deltaY = currentY - touchStartY;
+  
+  if(deltaY > 50 && window.scrollY === 0 && !isRefreshGesture) {
+    isRefreshGesture = true;
+    freezeHomeCache = null;
+    ytproFreezeDbg("下拉刷新，清除缓存");
   }
-},{capture:true,passive:true});
+}, {capture: true, passive: true});
 /*首屏兜底：脚本注入时若已在首页且 ytInitialData 已渲染出首页 feed，
 直接把它存为快照。解决"初始 browse 请求早于脚本注入、快照永远没机会
 被记录"导致的冻结完全失效。数据只在当前确为首页时捕获，避免把
@@ -373,6 +400,29 @@ var injectYtproSettingsEntry=(function(){
     }catch(e){}
     return null;
   }
+  /* 兜底行：Premium 行不存在时（已订阅 Premium、区域差异、页面改版）原来会让
+     设置面板完全进不去。这里退化为「我的」页里第一个原生设置风格行，克隆它当
+     入口。要求同一父节点下至少有两个同类行，避免误克隆内容卡片或长区块。*/
+  function findFallbackRow(){
+    try{
+      var nodes=document.querySelectorAll(SEL);
+      for(var i=0;i<nodes.length;i++){
+        var el=nodes[i];
+        if(!el.isConnected || !el.parentNode){ continue; }
+        var t=(el.textContent||"").trim();
+        if(!t || t.length>=60){ continue; }
+        if(el.querySelector && el.querySelector("video,img[src*='ytimg']")){ continue; }
+        var sibs=el.parentNode.children;
+        var same=0;
+        for(var j=0;j<sibs.length;j++){
+          if(sibs[j].matches && sibs[j].matches(SEL)){ same++; }
+        }
+        if(same<2){ continue; }
+        return el;
+      }
+    }catch(e){}
+    return null;
+  }
   return function(){
     var existing=document.getElementById("ytproSettingsEntry");
     if(existing && existing.isConnected){
@@ -381,16 +431,28 @@ var injectYtproSettingsEntry=(function(){
       try{ existing.remove(); }catch(e){}
     }
     var prem=findPremiumRow();
-    if(!prem || !prem.parentNode){ return; } /* not on the account page */
+    var useFallback=false;
+    if(!prem){
+      prem=findFallbackRow();
+      useFallback=true;
+      if(!prem){ return; } /* not on the account page at all */
+    }
+    if(!prem.parentNode){ return; }
     var item=prem.cloneNode(true);
     item.setAttribute("id","ytproSettingsEntry");
-    /* rename deepest text node(s) matching "premium", keep icon/chevron structure */
+    /* rename the label text, keep icon/chevron structure:
+       - Premium 路径：替换匹配 "premium" 的文本节点（保持原有行为）；
+       - 兜底路径：把最长的文本节点换成入口名 */
     try{
       var tw=document.createTreeWalker(item,NodeFilter.SHOW_TEXT,null,false);
-      var n;
+      var n, best=null, bestLen=0;
       while((n=tw.nextNode())){
-        if(n.nodeValue && /premium/i.test(n.nodeValue)){ n.nodeValue="YT PRO Settings"; }
+        var v=(n.nodeValue||"").trim();
+        if(!v){ continue; }
+        if(/premium/i.test(v)){ n.nodeValue="YT PRO Settings"; continue; }
+        if(useFallback && v.length>bestLen){ best=n; bestLen=v.length; }
       }
+      if(useFallback && best){ best.nodeValue="YT PRO Settings"; }
     }catch(e){}
     /* neutralise any href, reuse #settings route to open the YTPro panel */
     try{ item.removeAttribute("href"); }catch(e){}
@@ -401,7 +463,8 @@ var injectYtproSettingsEntry=(function(){
       window.location.hash="settings";
     },{capture:true});
     item.addEventListener("touchstart",function(e){ e.stopPropagation(); },{passive:true,capture:true});
-    prem.parentNode.insertBefore(item, prem.nextSibling);
+    if(useFallback){ prem.parentNode.insertBefore(item, prem.parentNode.firstChild); }
+    else{ prem.parentNode.insertBefore(item, prem.nextSibling); }
   };
 })();
 
@@ -1067,6 +1130,26 @@ fetch('https://youtube.com/ytpro_cdn/npm/ytpro/innertube.js', {cache: 'reload'})
 }
 
 
+/* viewport meta 的唯一应用点。原实现直接 document.getElementsByName("viewport")[0]
+.setAttribute(...)，页面没有 viewport meta 时 [0] 是 undefined，抛 TypeError 后会把
+同一次点击里排在后面的副作用（ytproSpeedBtn/bgplay/devMode）全部跳过。
+这里加判空并在首次找到后缓存（2026-09-29 核查文档第四节 4.2）。*/
+var ytproViewportMeta=null;
+function ytproViewportMetaEl(){
+  if(ytproViewportMeta && ytproViewportMeta.parentNode){ return ytproViewportMeta; }
+  try{ ytproViewportMeta=document.getElementsByName("viewport")[0]||null; }catch(e){ ytproViewportMeta=null; }
+  return ytproViewportMeta;
+}
+function ytproApplyViewport(){
+  var m=ytproViewportMetaEl();
+  if(!m){ return; }
+  if(localStorage.getItem("fzoom") == "false"){
+    m.setAttribute("content","width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no,");
+  }else{
+    m.setAttribute("content","");
+  }
+}
+
 /*Set Configration*/
 function sttCnf(x,z,y){
 
@@ -1124,24 +1207,27 @@ injectSpeedControls();
 }
 }
 
-if(localStorage.getItem("fzoom") == "false"){
-document.getElementsByName("viewport")[0].setAttribute("content","width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no,");
-}else{
-document.getElementsByName("viewport")[0].setAttribute("content","");
+/*下面三段都只做被点击那一个键的事。原实现不看 z 就无条件重放，
+导致点面板里任何开关都会顺带重设 viewport、重下发 setBgPlay、重建 eruda
+（2026-09-29 核查文档第四节 4.1）。*/
+if(z == "fzoom"){
+ytproApplyViewport();
 }
 
-
-
+if(z == "bgplay"){
 if(localStorage.getItem("bgplay") == "true"){
 Android.setBgPlay(true);
 }else{
 Android.setBgPlay(false);
 }
+}
 
+if(z == "devMode"){
 if(localStorage.getItem("devMode") == "false"){
 try{eruda.destroy();}catch{}
 }else if(!window.eruda && localStorage.getItem("devMode") == "true"){
 var script = document.createElement('script'); script.src="//youtube.com/ytpro_cdn/npm/eruda"; document.body.appendChild(script); script.onload=()=>{ eruda.init();}
+}
 }
 
 
@@ -1502,15 +1588,25 @@ addSettingsTab();
 
 /*默认关闭自动播放下一个：watch 页加载后若原生开关为开则点一次关闭。
 本页会话内用户手动打开后不再干预（__ytproNoAutoplayDone 去抖）。
-选择器 .ytp-autonav-toggle-button 经检索确认仍有效（2024-2025 注入脚本沿用）。*/
+两种播放器形态的选择器和属性名都不同，必须都覆盖（2026-09-29 真机核实）：
+- 桌面形态：.ytp-autonav-toggle-button，状态在 aria-checked；
+- m.youtube.com（App 实际加载的站点）：player-autonav-toggle 里的
+  button.ytwAutonavToggleButtonHost，状态在 aria-pressed。
+只查桌面选择器会让本开关在两个形态下都不产生任何动作。*/
 function ytproNoAutoplay(){
   if(localStorage.getItem("ytpro_noAutoplay") != "true") return;
   if(window.__ytproNoAutoplayDone) return;
   if(window.location.pathname.indexOf("watch") < 0) return;
-  var b=document.querySelector(".ytp-autonav-toggle-button");
+  var b=null;
+  try{
+    b=document.querySelector(".ytp-autonav-toggle-button")
+      ||document.querySelector("player-autonav-toggle button")
+      ||document.querySelector(".ytwAutonavToggleButtonHost");
+  }catch(e){}
   if(!b || !b.isConnected) return;
   window.__ytproNoAutoplayDone=true;
-  var on=(b.getAttribute("aria-pressed")=="true");
+  /*属性名两种形态不同：桌面 aria-checked，mweb aria-pressed*/
+  var on=(b.getAttribute("aria-pressed")=="true")||(b.getAttribute("aria-checked")=="true");
   if(on){ try{ b.click(); }catch(e){} }
 }
 
@@ -2728,9 +2824,13 @@ function injectSpeedControls(){
     return;
   }
 
-  var gear=document.querySelector(".ytp-settings-button");
-  var cc=document.querySelector(".ytp-subtitles-button");
-  var auto=document.querySelector(".ytp-autonav-toggle-button");
+  /*锚点链必须同时覆盖两种播放器形态（2026-09-29 真机核实）：桌面形态用 .ytp-*；
+  m.youtube.com（App 实际加载的站点）用 .player-settings-icon /
+  .ytmClosedCaptioningButtonButton / .ytwAutonavToggleButtonHost。
+  只查桌面选择器会让锚点全为空，pill 在一次注入前就 return，永不出现。*/
+  var gear=document.querySelector(".ytp-settings-button")||document.querySelector(".player-settings-icon");
+  var cc=document.querySelector(".ytp-subtitles-button")||document.querySelector(".ytmClosedCaptioningButtonButton");
+  var auto=document.querySelector(".ytp-autonav-toggle-button")||document.querySelector(".ytwAutonavToggleButtonHost");
   var anchor=auto||cc||gear;
   if(!anchor || !anchor.isConnected){ return; } /*controls hidden right now; the observer retries*/
 
@@ -2753,12 +2853,14 @@ function injectSpeedControls(){
   /*Shift the whole button cluster left by one native slot so the gear takes
   CC's old spot, CC takes autoplay's, autoplay moves one further left and the
   pill occupies the vacated slot (agreed layout). Measured live, applied once
-  per container instance so re-injection never stacks offsets.*/
+  per container instance so re-injection never stacks offsets.
+  mweb 顶栏是另一套结构，不做这个偏移，避免把错误的 margin 加到容器上。*/
   var container=anchor.parentElement;
+  var desktopCluster=!!(gear && gear.classList && gear.classList.contains("ytp-settings-button"));
   var gr=gear?gear.getBoundingClientRect():null;
   var cr=cc?cc.getBoundingClientRect():null;
   var slot=(gr && cr && gr.left>cr.left)?Math.round(gr.left-cr.left):44;
-  if(container && !container.__ytproShiftApplied && slot>8){
+  if(desktopCluster && container && !container.__ytproShiftApplied && slot>8){
     container.__ytproShiftApplied=true;
     container.style.marginRight=slot+"px";
   }
@@ -3037,6 +3139,92 @@ function ytproFabsSync(){
 document.addEventListener("fullscreenchange",ytproFabsSync);
 document.addEventListener("webkitfullscreenchange",ytproFabsSync);
 window.addEventListener("resize",ytproFabsSync);
+
+/* ---- TEMP DIAGNOSTIC: 全屏触点命中检测（仅开发者模式，定位完成后删除本段）----
+   用途：定位「全屏下原生齿轮点不动」。devMode 关闭时整段直接 return，零影响。
+   走 Android.showToast 而不是 eruda：eruda 浮层挂在 body 上，而 Android WebView
+   全屏只渲染 fullscreen 子树内的节点，全屏下看不见 eruda 面板。
+   不改变任何 DOM、不拦任何事件，只读取命中结果并上报。
+   同一段还承担「隐藏片尾卡片」的取证：播放到距结束 8 秒内报一次播放器里与
+   片尾相关的类名。*/
+(function(){
+  if(localStorage.getItem("devMode") != "true"){ return; }
+
+  function ytproProbeDesc(el){
+    if(!el){ return "null"; }
+    var cn = (typeof el.className === "string") ? el.className : "";
+    cn = cn.replace(/^\s+|\s+$/g,"").replace(/\s+/g,".");
+    return el.tagName + (el.id ? ("#"+el.id) : "") + (cn ? ("."+cn) : "");
+  }
+
+  function ytproProbeRect(r){
+    if(!r){ return "null"; }
+    return Math.round(r.left)+","+Math.round(r.top)+" "+Math.round(r.width)+"x"+Math.round(r.height);
+  }
+
+  function ytproProbeToast(msg){
+    try{ Android.showToast(msg); }catch(e){}
+  }
+
+  function ytproProbeGearEl(){
+    /* mweb 的真实齿轮是 .player-settings-icon；.ytp-settings-button 仅作兜底对照*/
+    return document.querySelector(".player-settings-icon") || document.querySelector(".ytp-settings-button");
+  }
+
+  function ytproProbeEnv(){
+    var fs=document.fullscreenElement||document.webkitFullscreenElement;
+    var vv=window.visualViewport;
+    var gear=ytproProbeGearEl();
+    return "env fs="+(fs?ytproProbeDesc(fs):"none")
+      +" win="+window.innerWidth+"x"+window.innerHeight
+      +" vv="+(vv?(Math.round(vv.width)+"x"+Math.round(vv.height)+"@"+Math.round(vv.offsetTop)):"none")
+      +" scr="+screen.width+"x"+screen.height
+      +" gear="+(gear?ytproProbeRect(gear.getBoundingClientRect()):"none");
+  }
+
+  var ytproProbeLast="";
+
+  document.addEventListener("touchstart", function(e){
+    if(!(document.fullscreenElement||document.webkitFullscreenElement)){ return; }
+    if(!e.touches || e.touches.length !== 1){ return; }
+    var t=e.touches[0];
+    var x=Math.round(t.clientX), y=Math.round(t.clientY);
+    var hit=null;
+    try{ hit=document.elementFromPoint(x,y); }catch(err){}
+    var msg="hit "+x+","+y+" -> "+ytproProbeDesc(hit);
+    if(msg === ytproProbeLast){ return; }
+    ytproProbeLast=msg;
+    setTimeout(function(){ ytproProbeLast=""; }, 1500);
+    ytproProbeToast(msg);
+  }, {capture:true, passive:true});
+
+  document.addEventListener("fullscreenchange", function(){
+    if(!(document.fullscreenElement||document.webkitFullscreenElement)){ return; }
+    setTimeout(function(){ ytproProbeToast(ytproProbeEnv()); }, 1200);
+  });
+
+  /* 片尾卡片取证：播放到距结束 8 秒内报一次播放器内与片尾相关的类名，
+     用来判断「隐藏片尾卡片」的 .ytp-ce-element / .ytp-endscreen-content /
+     .ytp-pause-overlay 在 mweb 上是否还有对应标记。只读类名，不改 DOM。*/
+  var ytproProbeEndDone=false;
+  document.addEventListener("timeupdate", function(e){
+    if(ytproProbeEndDone){ return; }
+    var v=e.target;
+    if(!v || v.tagName !== "VIDEO" || !isFinite(v.duration) || v.duration <= 0){ return; }
+    if(v.duration - v.currentTime > 8){ return; }
+    ytproProbeEndDone=true;
+    var seen={}, out=[], nodes=document.querySelectorAll("[class]");
+    for(var i=0;i<nodes.length && i<4000 && out.length<12;i++){
+      var cn=nodes[i].className;
+      if(typeof cn !== "string"){ continue; }
+      if(!/ce-|endscreen|pause-overlay|autonav/i.test(cn)){ continue; }
+      var key=cn.replace(/^\s+|\s+$/g,"").split(/\s+/)[0];
+      if(!key || seen[key]){ continue; }
+      seen[key]=1; out.push(key);
+    }
+    ytproProbeToast("endscreen: "+(out.length?out.join("|"):"none"));
+  }, true);
+})();
 
 /*Update your app bruh*/
 function updateModel(){
