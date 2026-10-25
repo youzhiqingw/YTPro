@@ -1,7 +1,7 @@
 [中文](README.zh.md)
 ---
 ## Features
-- **Video Downloader** — Tap download to hand off to an external downloader (YTDLnis) when one is installed; otherwise the built-in downloader takes over, with multiple qualities
+- **Video Downloader** — Tap download: hands off to YTDLnis when installed; otherwise a system chooser lets you pick any third-party downloader (the built-in downloader is never the default — long-press the download button to reach it)
 - **Shorts Downloader** — Same hand-off, for short-form videos
 - **Built-in Muxer** — Merge video and audio streams
 - **Thumbnail Downloader** — Save video cover images
