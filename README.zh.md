@@ -3,7 +3,6 @@
 <div align="center">
 
 [![Gradle](https://github.com/youzhiqingw/YTPro/actions/workflows/gradle.yml/badge.svg)](https://github.com/youzhiqingw/YTPro/actions/workflows/gradle.yml)
-<a href="https://www.jsdelivr.com/package/npm/ytpro?tab=stats"><img alt="jsDelivr monthly hits badge" src="https://data.jsdelivr.com/v1/package/npm/ytpro/badge"></a>
 <img src=https://img.shields.io/github/downloads/youzhiqingw/YTPro/total>
 
 [English](README.md)
@@ -18,7 +17,7 @@
 
 ## 功能特性
 
-- **视频下载** — 点下载优先跳转到第三方下载器（YTDLnis）；未安装时用内置下载器，支持多画质
+- **视频下载** — 点下载优先交给第三方下载器（YTDLnis）；未安装时弹系统选择器，自选其他第三方下载器。内置下载器不作默认：长按下载按钮进入
 - **Shorts 下载** — 同上，保存短视频内容
 - **内置混流器** — 自动合并视频和音频
 - **封面下载** — 保存视频缩略图

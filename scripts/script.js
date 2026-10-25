@@ -1,8 +1,8 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 4.0.2
+Version: 4.19
 URI: https://github.com/prateek-chaubey/YTPRO
-Last Updated On: 1 May , 2026 , 19:25 IST
+Last Updated On: 25 Oct , 2026
 */
 
 
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.17";
+var YTProVer="4.19";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -1946,6 +1946,103 @@ player.removeAttribute("ogTop");
 
 
 
+/*PiP 进入手势覆盖层（2026-10-25 上游同步 816b6fd）：MainActivity.onUserLeaveHint 进 PiP 前
+合成一次触摸（WebView 全屏 API 需要用户手势），覆盖层吸收这次触摸防误触页面 UI。
+上游把这两个函数嵌在大函数内部（作用域缺陷），javascript: 调用不可达，这里定义为全局。*/
+function showCurtain(){
+var el=document.createElement("div");
+el.setAttribute("id","ytProCurtain");
+el.setAttribute("style","position:fixed;z-index:9999999;width:100%;height:100%;top:0;left:0;");
+document.body.appendChild(el);
+}
+function hideCurtain(){
+var el=document.getElementById("ytProCurtain");
+if(el){ try{ el.remove(); }catch(e){} }
+}
+
+/*点踩数显示（2026-10-25 上游同步）：mweb 点赞容器已迁到 slim-video-information-like-count，
+点踩数改为同风格 span 插在其后（文案按 fork 中文化用「点踩」，不照搬上游英文）；
+旧 dislike-button-view-model 链保留为回退，新链失败时静默走旧链（5.5 降级）。*/
+function ytproMountWatchDislikes(dislikes){
+try{
+var likeEl=document.getElementsByClassName("slim-video-information-like-count")[0];
+if(likeEl && likeEl.parentNode){
+var html='<span class="slim-video-subtitle-substring slim-video-information-dislike-count"><span class="ytAttributedStringHost" dir="auto" role="text">'+dislikes+' 点踩</span></span>';
+var diskl=document.getElementById("diskl");
+if(!diskl){
+diskl=document.createElement("span");
+diskl.setAttribute("id","diskl");
+diskl.innerHTML=html;
+if(likeEl.nextSibling){ likeEl.parentNode.insertBefore(diskl,likeEl.nextSibling); }
+else{ likeEl.parentNode.appendChild(diskl); }
+}else{
+diskl.innerHTML=html;
+}
+return;
+}
+}catch(e){}
+try{
+var elm=document.getElementsByTagName("dislike-button-view-model")[0].children[0];
+elm.children[0].children[0].style.width="auto";
+elm.children[0].children[0].style.paddingRight="15px";
+var oldDiskl=document.getElementById("diskl");
+if(!oldDiskl){
+oldDiskl=document.createElement("span");
+oldDiskl.setAttribute("id","diskl");
+oldDiskl.innerHTML=dislikes;
+oldDiskl.style.marginLeft="5px";
+insertAfter(elm.getElementsByClassName("yt-spec-button-shape-next__icon")[0],oldDiskl);
+}else{
+oldDiskl.innerHTML=dislikes;
+}
+}catch(e){}
+}
+
+/*Shorts 操作栏宿主（2026-10-25 上游同步 816b6fd）：YouTube 已把 mweb Shorts 操作栏从
+reel-player-overlay-actions 迁到 ytwReelActionBarViewModelHost，旧容器在现行页面不存在，
+按钮会失挂（catch 静默）。新容器优先（ys 顶部、顺序 收藏/下载），旧容器回退（保持 fork
+原顺序 下载/收藏）。定义在顶层：调用点分属不同作用域，嵌套会复刻上游 curtain 的作用域缺陷。*/
+function ytproShortsActionBarHost(){
+try{
+var n=document.getElementsByClassName("ytwReelActionBarViewModelHost");
+if(n && n[0]){ return {host:n[0],isNew:true}; }
+}catch(e){}
+try{
+var o=document.getElementsByClassName("reel-player-overlay-actions");
+if(o && o[0]){ return {host:o[0],isNew:false}; }
+}catch(e){}
+return null;
+}
+function ytproMountShortsBar(ys,ysDown,ysHeart){
+var sb=ytproShortsActionBarHost();
+if(!sb){ return; }
+try{
+sb.host.insertBefore(ys,sb.isNew ? sb.host.children[0] : sb.host.children[1]);
+}catch(e){}
+if(sb.isNew){
+ys.appendChild(ysHeart);
+ys.appendChild(ysDown);
+}else{
+ys.appendChild(ysDown);
+ys.appendChild(ysHeart);
+}
+}
+
+/*Shorts 点踩数（2026-10-25 上游同步）：dislike-button-view-model 旧链已随 mweb 改版
+失效，改挂到 like-button-view-model（圆点+粗体数字，ytShortsDislikes 判重），旧链保留为回退。*/
+function ytproMountShortsDislikes(dislikes){
+try{
+var tip=document.querySelectorAll('like-button-view-model')[0].children[0].children[0].children[0];
+if(!document.getElementById("ytShortsDislikes")){
+tip.insertAdjacentHTML("beforeend",'<span style="height:3px;width:3px;border-radius:50%;box-shadow:0px 0px 3px black;margin:3px;background:white">&nbsp;</span><span id="ytShortsDislikes" style="font-weight:bold;text-shadow:0px 0px 3px black;">'+dislikes+'</span>');
+}else{
+document.getElementById("ytShortsDislikes").innerHTML=dislikes;
+}
+return;
+}catch(e){}
+try{document.querySelectorAll('dislike-button-view-model')[0].children[0].children[0].children[0].children[1].children[0].innerHTML=dislikes;}catch(e){}
+}
+
 /*THE 0NE AND 0NLY FUNCTION*/
 async function pkc(){
 
@@ -1953,22 +2050,7 @@ if(window.location.href.indexOf("youtube.com/watch") > -1){
 
 
 try{
-var elm=document.getElementsByTagName("dislike-button-view-model")[0].children[0]; 
-elm.children[0].children[0].style.width="auto";
-elm.children[0].children[0].style.paddingRight="15px";
-
-if(!document.getElementById("diskl")){
-  var diskl=document.createElement("span");
-  diskl.setAttribute("id","diskl");
-  diskl.innerHTML=dislikes;
-  diskl.style.marginLeft="5px";
-  
-insertAfter(elm.getElementsByClassName("yt-spec-button-shape-next__icon")[0],diskl);
-
-}else{
-document.getElementById("diskl").innerHTML=dislikes;
-}
-
+ytproMountWatchDislikes(dislikes);
 }catch(e){}
 
 
@@ -2016,10 +2098,16 @@ ytproFavElem.addEventListener("click",()=>{ytProHeart(ytproFavElem);});
 
 
 
-/*Third-party downloader (YTDLnis) first; when it is not installed, open the
-built-in download panel (#download hash) instead of a system share chooser.
-hasThirdPartyDownloader bridge missing (old APK) or throwing counts as
-"no third party", so the built-in panel always stays reachable.*/
+/*Download handoff (2026-10-25，项目所有者指令)：第三方优先，内置面板绝不作为默认路径。
+- 装有 YTDLnis → 直接 ACTION_SEND 给它（检测依赖 manifest 新增的 <queries> 声明：
+  没有它 Android 11+ 的包可见性过滤会让 getPackageInfo 恒抛异常，默认路径失效）。
+- 没装 YTDLnis → 走既有 shareText 桥（通用 ACTION_SEND + createChooser），
+  由系统选择器让用户自选其他第三方下载器；choice 不持久化，每次可选。
+- 长按下载按钮（500ms，桌面端右键）→ 内置 SABR 面板（#download hash）：
+  保留入口但明确非默认。ytproBindBuiltinDownload 负责挂长按并吞掉长按后
+  紧随的 click（capture + stopImmediatePropagation），避免双触发。
+- 桥缺失（旧 APK）或抛错视为「无第三方」；chooser 桥也不可用时才回退内置
+  面板，保证按钮永不死路（AGENTS 5.5 降级要求）。*/
 function ytproSendToDownloader(){
   var u=window.location.href.replace("m.youtube.com","www.youtube.com");
   var has=false;
@@ -2032,7 +2120,37 @@ function ytproSendToDownloader(){
       return;
     }catch(err){}
   }
+  try{
+    Android.shareText(u);
+    return;
+  }catch(err){}
   window.location.hash="download";
+}
+
+/*长按下载按钮 → 内置 SABR 下载面板。挂在按钮元素上；长按触发后用
+  capture 阶段 click 监听吞掉本次点击，短按的 click 不受影响。*/
+function ytproBindBuiltinDownload(entry){
+  var timer=0, fired=false;
+  entry.addEventListener("touchstart",function(){
+    fired=false;
+    timer=setTimeout(function(){
+      timer=0; fired=true;
+      window.location.hash="download";
+    },500);
+  },{passive:true});
+  entry.addEventListener("touchend",function(){ if(timer){ clearTimeout(timer); timer=0; } },{passive:true});
+  entry.addEventListener("touchcancel",function(){ if(timer){ clearTimeout(timer); timer=0; } },{passive:true});
+  entry.addEventListener("click",function(e){
+    if(fired){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      fired=false;
+    }
+  },{capture:true});
+  entry.addEventListener("contextmenu",function(e){
+    e.preventDefault();
+    window.location.hash="download";
+  });
 }
 
 /*Download Button*/
@@ -2044,6 +2162,7 @@ ytproDownVidElem.addEventListener("click",
 function(){
 ytproSendToDownloader();
 });
+ytproBindBuiltinDownload(ytproDownVidElem);
 
 /*Copy / share helpers: current title + canonical URL.*/
 function ytproCurrentTitle(){
@@ -2170,6 +2289,7 @@ ysDown.addEventListener("click",
 function(){
 ytproSendToDownloader();
 });
+ytproBindBuiltinDownload(ysDown);
 
 
 /*Heart Button*/
@@ -2199,19 +2319,12 @@ ytProHeart(ysHeart);
 
 
 try{
-  
-  if(document.getElementsByClassName("reel-player-overlay-actions")[0].children[0]){
-  
-document.getElementsByClassName("reel-player-overlay-actions")[0].insertBefore(ys,document.getElementsByClassName("reel-player-overlay-actions")[0].children[1]);
-
-ys.appendChild(ysDown);
-ys.appendChild(ysHeart);
-}
+ytproMountShortsBar(ys,ysDown,ysHeart);
 }catch{}
 
 }
 
-try{document.querySelectorAll('dislike-button-view-model')[0].children[0].children[0].children[0].children[1].children[0].innerHTML=dislikes;}catch{}
+try{ytproMountShortsDislikes(dislikes);}catch{}
 
 
 
@@ -2287,7 +2400,7 @@ return ytproHh.innerHTML+="暂无收藏视频";
 for(var n=Object.keys(v).length - 1; n >  -1 ; n--){
 var x=Object.keys(v)[n];
 ytproHh.innerHTML+=`<li class="thum" >
-<img data-action="navigateInternalYtMweb" data-id="${x}" src="${v[x].thumb}" ><br>
+<img data-action="navigateInternalYtMweb" data-id="${x}" style="object-fit:contain;" src="${v[x].thumb}" ><br>
 <div style="width:calc(100% - 170px);margin-left:5px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical; -webkit-line-clamp:3;overflow:hidden;text-overflow:ellipsis;" data-action="navigateInternalYtMweb" data-id="${x}" >${v[x].title}</div>
 <div style="width:calc(100% - (100% - 35px))">
 <svg data-action="remHeart" data-id="${x}" xmlns="http://www.w3.org/2000/svg" width="20" height="20" style="margin-left:0px;" fill="#f24" class="bi bi-x-circle-fill" viewBox="0 0 16 16">
