@@ -72,6 +72,12 @@ public class YTProWebChromeClient extends WebChromeClient {
         // Match the fullscreen orientation to the video's own aspect ratio.
         // activity.portrait is kept in sync with the video element by the
         // injected script before requestFullscreen() fires.
+        applyFullscreenOrientation();
+    }
+
+    /** 2026-10-25：按 activity.isPip/portrait 重锁全屏方向。onShowCustomView 与
+     *  JS 重报方向（fullScreen 桥在元数据就绪/方向变化时的自愈重报）共用。 */
+    public void applyFullscreenOrientation() {
         final int orientation;
         if (activity.isPip) {
             orientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;

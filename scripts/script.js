@@ -1,6 +1,6 @@
 /*****YTPRO*******
 Author: Prateek Chaubey
-Version: 4.19
+Version: 4.20
 URI: https://github.com/prateek-chaubey/YTPRO
 Last Updated On: 25 Oct , 2026
 */
@@ -17,7 +17,7 @@ var script = document.createElement('script'); script.src="//youtube.com/ytpro_c
 if(!YTProVer){
 
 /*Few Stupid Inits*/
-var YTProVer="4.19";
+var YTProVer="4.20";
 var ytoldV="";
 var isF=false;   //what is this for?
 var isAp=false; // oh it's for bg play 
@@ -1588,8 +1588,12 @@ function seekSwipeReset(){
 }
 function seekSwipeEligible(e){
   if(localStorage.getItem("ytpro_seekSwipe") != "true") return false;
-  if(holdActive) return false;   /*2X 已生效：不进入横滑，避免两功能连串*/
-  if(holdTimer) return false;    /*长按计时中：让位于长按，纯长按不受干扰*/
+  if(holdActive) return false;   /*2X 已生效：不进入横滑（0bd9515 的本意）*/
+  /*2026-10-25 修复 P2 死开关：不再以 pending 的 holdTimer 排除候选——holdTimer 在
+  touchstart 即同步置位，原判据让默认开启的长按倍速把横滑候选全部压死（开启后无任何
+  触发路径）。优先级现为：横向位移先到锁定阈值 → seekSwipe 锁定并 cancelHold；静止
+  满 500ms → 2X 生效（holdActive=true）后横滑自然退出。hold 的 touchmove 在位移超
+  12px 时也会自行取消计时，双路径互不阻塞。*/
   if(!(document.fullscreenElement||document.webkitFullscreenElement)) return false;
   return isHoldTarget(e); /*复用长按的目标判定：.video-stream / .player-controls-background*/
 }
@@ -1611,6 +1615,7 @@ document.body.addEventListener('touchmove', e => {
   if(Math.abs(dx)<SEEK_SWIPE_LOCK) return;
   if(Math.abs(dx)<Math.abs(dy)*SEEK_SWIPE_RATIO){ seekSwipeReset(); return; }
   seekSwipeLocked=true;
+  cancelHold(); /*双保险：锁定横滑时确保长按计时终止（hold 的 touchmove 12px 已会取消）*/
   try{ e.preventDefault(); }catch(e2){} /*锁定后阻止原生横滚/进度条拖动*/
 }, { capture:true, passive:false });
 
@@ -1640,9 +1645,9 @@ document.body.addEventListener('touchcancel', e => {
 - 长按倍速：静止长按无位移永不确认，不受影响；竖滑确认时主动 cancelHold()；
   长按已生效（holdActive）时不接管。
 - 横滑跳转：竖滑确认时 seekSwipeReset() 终止其候选；若横滑先锁定
-  （seekSwipeLocked）则本手势放弃。注意 holdTimer 在 touchstart 即置位，
-  这里不以它作为放弃条件（seekSwipe 的候选会因此被默认开启的长按压死，
-  属 0bd9515 既有问题，不在本功能里顺手改）。
+  （seekSwipeLocked）则本手势放弃。seekSwipe 候选曾被 holdTimer 压死
+  （0bd9515 既有问题），2026-10-25 已修复：横滑不再以 pending holdTimer
+  为放弃条件，锁定时主动 cancelHold。
 - 双指：直接复位，让位缩放。
 音量走 STREAM_MUSIC（Android.setVolume，系统级，每次手势前实时取基线）；
 亮度只覆盖窗口层（Android.setBrightness，无需 WRITE_SETTINGS）。由于
@@ -1816,9 +1821,10 @@ window.addEventListener("yt-navigate-finish", function(){
   /*控制条渲染可能晚于导航完成事件，稍后重试（__ytproNoAutoplayDone 保证每页只干预一次）*/
   setTimeout(ytproNoAutoplay, 500);
   setTimeout(ytproNoAutoplay, 1500);
-  /*新视频加载后重应用用户选定的画面比例，防 object-fit 设置丢失*/
-  setTimeout(applyAspect, 300);
-  setTimeout(applyAspect, 1200);
+  /*新视频加载后重报方向并重放画面比例：非全屏防 object-fit 丢失；全屏自动连播
+  换片时方向也随之重锁（ytproSyncFullscreen 内含 applyAspect）*/
+  setTimeout(ytproSyncFullscreen, 300);
+  setTimeout(ytproSyncFullscreen, 1200);
 });
 window.addEventListener("yt-navigate-start", function(){
   window.__ytproNoAutoplayDone=false; /*每个新页面会话重置干预标记*/
@@ -2682,6 +2688,9 @@ document.addEventListener("fullscreenchange",function(){
   isPIP=false;
   pauseAllowed=true;
  }
+ /*2026-10-25：进出全屏都重报方向并重放画面比例（自愈；也覆盖 webkit 前缀
+ 入口绕过 requestFullscreen 补丁的情况）*/
+ ytproSyncFullscreen();
 });
 
 
@@ -2701,13 +2710,48 @@ function ytproFullscreenIsPortrait(){
   }catch(e){ return false; }
 }
 
+/*全屏方向/画面自愈（2026-10-25，所有者报告：详情页横屏转全屏竖屏时大小/位置/方向
+未自动匹配）。根因：进全屏瞬间视频元数据可能未就绪（videoWidth=0），盒子尺寸回退
+在 16:9 详情盒子里会把 9:16 视频误判成横屏；且 fullscreenchange 原本不重放方向与
+画面比例，进入全屏后没有任何自愈路径。重报时机：requestFullscreen/webkit 补丁、
+fullscreenchange、yt-navigate-finish（全屏自动连播换片重锁方向）、loadedmetadata
+（下方全局捕获，元数据就绪后自愈）。Java 侧 fullScreen() 在全屏激活时会重锁方向。*/
+function ytproSyncFullscreen(){
+  try{ Android.fullScreen(ytproFullscreenIsPortrait()); }catch(e){}
+  try{ applyAspect(); }catch(e){}
+}
+
+/*loadedmetadata 全局捕获（2026-10-25 二次强化）：loadedmetadata 不冒泡，capture 在
+document 上可截获任意 video 的该事件。仅全屏激活时重同步（非全屏换片由
+yt-navigate-finish 时机负责），覆盖：进全屏时元数据晚到、全屏中自动连播换片。*/
+function ytproOnLoadedMetadata(){
+  if(document.fullscreenElement || document.webkitFullscreenElement){
+    ytproSyncFullscreen();
+  }
+}
+if(!document.__ytproMetaCapture){
+  document.__ytproMetaCapture=true;
+  document.addEventListener("loadedmetadata", ytproOnLoadedMetadata, true);
+}
+
 Element.prototype.requestFullscreen = function (...args) {
 // A normal (non-PIP) fullscreen request resets the PIP flag, so a stale flag
 // left over from a previous PIP session can never block the exit later.
 isPIP=false;
-Android.fullScreen(ytproFullscreenIsPortrait());
+ytproSyncFullscreen();
 return originalRequestFullscreen.apply(this, args);
 };
+
+/*部分入口走 webkit 前缀 API：同样接入方向/画面同步，否则 onShowCustomView
+读到的是启动时的陈旧 portrait 值（2026-10-25 上游同步时发现的旁路）。*/
+if (Element.prototype.webkitRequestFullscreen) {
+  const originalWebkitRequestFullscreen = Element.prototype.webkitRequestFullscreen;
+  Element.prototype.webkitRequestFullscreen = function (...args) {
+    isPIP=false;
+    ytproSyncFullscreen();
+    return originalWebkitRequestFullscreen.apply(this, args);
+  };
+}
 
 
 

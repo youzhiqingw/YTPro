@@ -188,6 +188,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** 2026-10-25：全屏方向自愈入口——fullScreen 桥在元数据就绪/方向变化时重报，
+     *  若 HTML5 全屏自定义视图正显示着，则立即重锁方向（否则仅更新字段）。 */
+    public void applyFullscreenOrientationIfActive() {
+        if (chromeClient != null && chromeClient.isFullscreen()) {
+            chromeClient.applyFullscreenOrientation();
+        }
+    }
+
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
         // 2026-10-25 上游同步：先置 isPip 再跑 JS——evaluateJavascript 异步，回调里可能读取该状态

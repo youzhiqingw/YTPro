@@ -161,6 +161,8 @@ public class WebAppInterface {
 	@JavascriptInterface
 	public void fullScreen(boolean value) {
 		activity.portrait = value;
+		// 2026-10-25：全屏激活期间 JS 重报方向（元数据就绪/方向变化自愈）时立即重锁
+		activity.runOnUiThread(() -> activity.applyFullscreenOrientationIfActive());
 	}
 	
 	@JavascriptInterface
