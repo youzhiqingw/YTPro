@@ -18,6 +18,8 @@ import android.webkit.WebSettings;
 import android.widget.Toast;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
+import android.view.MotionEvent;
+import android.os.SystemClock;
 
 import com.google.android.youtube.pro.receivers.MediaCommandReceiver;
 import com.google.android.youtube.pro.webview.BinaryStreamManager;
@@ -188,18 +190,35 @@ public class MainActivity extends Activity {
 
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        // 2026-10-25 上游同步：先置 isPip 再跑 JS——evaluateJavascript 异步，回调里可能读取该状态
+        isPip = isInPictureInPictureMode;
         if (web != null) {
             web.evaluateJavascript(isInPictureInPictureMode ? "PIPlayer();" : "removePIP();", null);
         }
-        isPip = isInPictureInPictureMode;
     }
 
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        if (Build.VERSION.SDK_INT >= 26 && web != null && web.getUrl() != null && web.getUrl().contains("watch")) {
+        if (Build.VERSION.SDK_INT >= 26 && web != null && web.getUrl() != null
+                && (web.getUrl().contains("watch") || web.getUrl().contains("shorts"))) {
             if (isPlaying) {
                 try {
+                    // 2026-10-25 上游同步：WebView 全屏 API 需要用户手势，进 PiP 前合成一次触摸；
+                    // showCurtain/hideCurtain（script.js 顶层全局）先铺覆盖层吸收这次触摸，
+                    // 防止手势误触页面 UI。注意 loadUrl 异步，覆盖层可能晚于触摸生效（上游同款时序，
+                    // 触摸点取顶部中央以最小化误触面）。
+                    web.loadUrl("javascript:showCurtain();");
+                    long downTime = SystemClock.uptimeMillis();
+                    float x = web.getWidth() / 2f;
+                    float y = 10f;
+                    MotionEvent down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0);
+                    web.dispatchTouchEvent(down);
+                    MotionEvent up = MotionEvent.obtain(downTime, downTime + 15, MotionEvent.ACTION_UP, x, y, 0);
+                    web.dispatchTouchEvent(up);
+                    down.recycle();
+                    up.recycle();
+                    web.loadUrl("javascript:hideCurtain();");
                     isPip = true;
                     PictureInPictureParams params = new PictureInPictureParams.Builder()
                             .setAspectRatio(new Rational(portrait ? 9 : 16, portrait ? 16 : 9))
