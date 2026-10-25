@@ -58,8 +58,12 @@ docs/research-notes.md
 docs/设置面板与全屏齿轮核查.md
 .zcodeignore
 
+# Archived superseded working notes (moved out of docs/ on 2026-10-25, see docs/README.md)
+docs/archive/
+
 # Local working notes / AI session docs (not for VCS)
 DESIGN.md
 claude.md
 *.session.md
 /tools/browser-sim
+/docs

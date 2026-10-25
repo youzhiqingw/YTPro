@@ -34,8 +34,8 @@ YTPro 是纯 Java 的 Android 应用，用 WebView 加载 YouTube，通过注入
 
 ### 2.4 发布相关
 
-- 修改 `scripts/package.json` 前，先评估对 npm 发布链的影响。
-- 签名、CI 等以仓库现有发布文档为准。
+- 修改 `scripts/package.json` 前，先评估对 npm 发布链的影响。（2026-10-25 起 `npm-publish.yml` 已手动禁用——App 端使用本地 assets，npm 版本停在 4.0.2；恢复前先完成版本三源对齐，见 `docs/缺陷修复与死代码清理规范.md` 第二节。）
+- 签名、CI 等以仓库现有发布文档为准（`docs/RELEASE_SIGNING.md`）。
 
 ## 3. 开发流程
 

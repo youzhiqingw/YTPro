@@ -1,10 +1,12 @@
 name: Publish to NPM
 
+# DISABLED (2026-10-25): App 端使用本地 assets（YTProWebViewClient.loadLocalYtproAsset），
+# 不再依赖 npm 分发；且 scripts/package.json 版本自上游起停在 4.0.2，
+# package.json 一旦变更本工作流会向 npm 的 ytpro 包名误发布（EPUBLISHCONFLICT）。
+# 恢复条件：先完成 docs/git历史遗留问题核查.md P6 的版本三源对齐并 bump package.json，
+# 再把下方触发条件改回 push + paths。详见 docs/缺陷修复与死代码清理规范.md 第二节。
 on:
-  push:
-    paths:
-      - 'scripts/package.json'
-    branches: [ main ]
+  workflow_dispatch: {}
 
 permissions: {}
 
